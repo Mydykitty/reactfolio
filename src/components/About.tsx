@@ -1,21 +1,27 @@
-import React from "react"; // 引入 React
-import type { AboutInfo } from "../types"; // 导入 AboutInfo 接口类型，用于约束 props
+import React from "react";
+import type { AboutInfo } from "../types";
 
-// 定义组件接收的 props 类型
 interface AboutProps {
-  about: AboutInfo; // about 对象必须符合 AboutInfo 接口
+  about: AboutInfo;
 }
 
-// 定义 About 组件，使用 React.FC 泛型指定 props 类型
 const About: React.FC<AboutProps> = ({ about }) => {
   return (
-    <section className="about">
-      {/* 如果有头像，就显示 img 标签 */}
-      {about.avatar && <img src={about.avatar} alt="头像" className="avatar" />}
-      {/* 显示个人简介文字 */}
-      <p>{about.bio}</p>
+    <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <div className="flex flex-col md:flex-row items-center gap-6">
+        {about.avatar && (
+          <img
+            src={about.avatar}
+            alt="头像"
+            className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+          />
+        )}
+        <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+          {about.bio}
+        </p>
+      </div>
     </section>
   );
 };
 
-export default About; // 导出组件以供其他文件使用
+export default About;

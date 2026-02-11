@@ -33,7 +33,7 @@ func TestMergeFile(t *testing.T) {
 		if strings.Contains(path, "node_modules") {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".tsx") && !strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".css") {
+		if !strings.HasSuffix(path, ".tsx") && !strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".css") && !strings.HasSuffix(path, ".js") {
 			return nil
 		}
 

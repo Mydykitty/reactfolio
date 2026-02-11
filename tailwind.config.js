@@ -1,10 +1,13 @@
-// tailwind.config.js
-module.exports = {
-  content: [
-    "./src/**/*.{html,js,jsx,ts,tsx}", // 扫描所有相关文件
-  ],
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class', // ✅ 确保是 class 模式
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        // 可以在这里扩展自定义颜色
+      },
+    },
   },
   plugins: [],
 };

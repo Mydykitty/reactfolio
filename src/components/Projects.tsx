@@ -1,31 +1,39 @@
-import React from "react"; // 引入 React
-import type { Project } from "../types"; // 导入 Project 接口类型
+import React from "react";
+import type { Project } from "../types";
 
-// 定义组件接收的 props 类型
 interface ProjectsProps {
-  projects: Project[]; // projects 是一个 Project 类型的数组
+  projects: Project[];
 }
 
-// 定义 Projects 组件
-const Projects: React.FC<ProjectsProps> = ({ projects }) => (
-  <section className="projects">
-    <h2>项目经验</h2> {/* 模块标题 */}
-
-    {/* 遍历 projects 数组，渲染每个项目 */}
-    {projects.map((p, i) => (
-      <div key={i}> {/* 每个项目一个容器 */}
-        <h3>{p.name}</h3> {/* 项目名称 */}
-        <p>{p.description}</p> {/* 项目描述 */}
-
-        {/* 如果有项目链接才显示链接 */}
-        {p.link && (
-          <a href={p.link} target="_blank">
-            查看项目
-          </a>
-        )}
+const Projects: React.FC<ProjectsProps> = ({ projects }) => {
+  return (
+    <section className="py-8 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+        项目
+      </h2>
+      <div className="space-y-4">
+        {projects.map((project, index) => (
+          <div
+            key={index}
+            className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg"
+          >
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+              {project.name}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
+              {project.description}
+            </p>
+            <a
+              href={project.link}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              查看项目
+            </a>
+          </div>
+        ))}
       </div>
-    ))}
-  </section>
-);
+    </section>
+  );
+};
 
-export default Projects; // 导出组件
+export default Projects;

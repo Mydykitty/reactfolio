@@ -1,38 +1,44 @@
-import React from "react"; // 引入 React
-import type { ContactInfo } from "../types"; // 导入 ContactInfo 接口类型
+import React from "react";
+import type { ContactInfo } from "../types";
 
-// 定义组件接收的 props 类型
 interface ContactProps {
-  contact: ContactInfo; // contact 对象必须符合 ContactInfo 接口
+  contact: ContactInfo;
 }
 
-// 定义 Contact 组件
-const Contact: React.FC<ContactProps> = ({ contact }) => (
-  <section className="contact">
-    <h2>联系方式</h2> {/* 模块标题 */}
+const Contact: React.FC<ContactProps> = ({ contact }) => {
+  return (
+    <section className="py-8 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+        联系我
+      </h2>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="text-gray-700 dark:text-gray-300">📧</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            {contact.email}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-700 dark:text-gray-300">💻</span>
+          <a
+            href={contact.github}
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            GitHub
+          </a>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-700 dark:text-gray-300">👔</span>
+          <a
+            href={contact.linkedin}
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            LinkedIn
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+};
 
-    <ul>
-      {/* 邮箱是必填项，直接显示 */}
-      <li>Email: {contact.email}</li>
-
-      {/* 如果有电话才显示 */}
-      {contact.phone && <li>Phone: {contact.phone}</li>}
-
-      {/* 如果有 GitHub 地址才显示链接 */}
-      {contact.github && (
-        <li>
-          GitHub: <a href={contact.github}>{contact.github}</a>
-        </li>
-      )}
-
-      {/* 如果有 LinkedIn 地址才显示链接 */}
-      {contact.linkedin && (
-        <li>
-          LinkedIn: <a href={contact.linkedin}>{contact.linkedin}</a>
-        </li>
-      )}
-    </ul>
-  </section>
-);
-
-export default Contact; // 导出组件
+export default Contact;

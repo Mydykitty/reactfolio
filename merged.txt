@@ -1,108 +1,88 @@
+===== eslint.config.js =====
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+  },
+])
+
+
+===== postcss.config.js =====
+// postcss.config.js
+export default {
+  plugins: {
+    "@tailwindcss/postcss": {},
+    autoprefixer: {},
+  },
+};
+
+
 ===== src/App.css =====
+/* src/App.css */
+
 /* 设置整个页面的基础样式 */
 body {
-  font-family: Arial, sans-serif; /* 全局字体 */
-  background: #f5f5f5;            /* 页面背景色（浅灰） */
-  margin: 0;                      /* 去掉浏览器默认外边距 */
-  padding: 0;                     /* 去掉浏览器默认内边距 */
-  transition: background-color 0.3s, color 0.3s; /* 添加过渡效果 */
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
-/* 整个应用的外层容器 */
+/* 整个应用的外层容器，只保留布局和过渡 */
 .app {
-  max-width: 800px;               /* 最大宽度，防止内容过宽 */
-  margin: 20px auto;              /* 上下 20px，左右居中 */
-  padding: 20px;                  /* 内边距 */
-  background: #fff;               /* 白色背景 */
-  border-radius: 8px;             /* 圆角 */
-  transition: background-color 0.3s; /* 添加过渡效果 */
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  border-radius: 8px;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 /* 头部区域样式 */
 header {
-  text-align: center;             /* 内容居中 */
-  margin-bottom: 20px;            /* 下方留空 */
+  text-align: center;
+  margin-bottom: 20px;
 }
 
 /* 头部里的 h1 */
 header h1 {
-  margin: 0;                      /* 去掉默认外边距 */
-  transition: color 0.3s;          /* 添加过渡效果 */
+  margin: 0;
+  transition: color 0.3s;
 }
 
 /* 头像图片样式 */
 .avatar {
-  width: 120px;                   /* 固定宽度 */
-  border-radius: 50%;             /* 圆形头像 */
+  width: 120px;
+  border-radius: 50%;
 }
 
-/* 每个 section 模块 */
+/* 每个 section 模块，只留 margin */
 section {
-  margin-bottom: 20px;            /* 模块之间的间距 */
+  margin-bottom: 20px;
 }
 
-/* 链接样式 */
+/* 链接样式，只留颜色过渡 */
 a {
-  color: #007acc;                 /* 链接颜色 */
-  text-decoration: none;          /* 去掉下划线 */
-  transition: color 0.3s;          /* 添加过渡效果 */
-}
-
-/* 暗黑模式 */
-body.dark {
-  background: #242424;            /* 页面背景色（深色） */
-  color: #fff;                    /* 文字颜色（白色） */
-}
-
-/* 整个应用容器的背景颜色改为深色 */
-body.dark .app {
-  background: #333;               /* 深色背景 */
-}
-
-/* 头部字体颜色改为白色 */
-body.dark header h1 {
-  color: #fff;
-}
-
-/* 头像图片样式（不变） */
-
-/* 每个 section 模块在暗黑模式下字体颜色也改为白色 */
-body.dark section {
-  color: #fff;
-}
-
-/* 链接样式改为亮色 */
-body.dark a {
-  color: #4d90fe; /* 亮色的链接 */
-}
-
-/* 鼠标悬停时链接颜色加深 */
-body.dark a:hover {
-  color: #76aaff;
-}
-
-/* 按钮的样式（如果你有按钮的话） */
-body.dark button {
-  background: #444;
-  color: #fff;
-  border: 1px solid #555;
-}
-
-body.dark button:hover {
-  background: #555;
-}
-
-/* 初始状态 */
-.scroll-section {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: all 0.8s ease;
-}
-
-/* 出现状态 */
-.scroll-section.show {
-  opacity: 1;
-  transform: translateY(0);
+  text-decoration: none;
+  transition: color 0.3s;
 }
 
 
@@ -113,10 +93,10 @@ import About from "./components/About";
 import Skills from "./components/Skills";
 import Projects from "./components/Projects";
 import Contact from "./components/Contact";
+import ScrollReveal from "./components/ScrollReveal";
+import Button from "./components/common/Button";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
-import "./App.css";
-import ScrollReveal from "./components/ScrollReveal";
 
 const projects: Project[] = [
   {
@@ -140,43 +120,47 @@ const about: AboutInfo = {
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
-  // 使用 useEffect 来加载并设置主题
+  // 初始化
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      setDarkMode(savedTheme === "dark");
-    }
+    const isDark = savedTheme === "dark";
+    setDarkMode(isDark);
+    document.documentElement.classList.toggle("dark", isDark); // ✅ html
   }, []);
 
-  // 切换主题
   const toggleTheme = () => {
     setDarkMode((prev) => {
       const newTheme = !prev;
       localStorage.setItem("theme", newTheme ? "dark" : "light");
-      document.body.classList.toggle("dark", newTheme);
+      document.documentElement.classList.toggle("dark", newTheme); // ✅ html
       return newTheme;
     });
   };
 
   return (
-    <div className="app">
-      <button onClick={toggleTheme} className="theme-toggle-btn">
-        {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
-      </button>
-      <Header name="张三" title="前端开发工程师" />
-      <ScrollReveal>
-        <About about={about} />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Skills />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Projects projects={projects} />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Contact contact={contact} />
-      </ScrollReveal>
-    </div>
+      <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
+          <div className="flex justify-end mb-4">
+              <Button onClick={toggleTheme}>
+                  {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
+              </Button>
+          </div>
+
+          <Header name="张三" title="前端开发工程师" />
+
+          <ScrollReveal>
+              <About about={about} />
+          </ScrollReveal>
+          <ScrollReveal>
+              <Skills />
+          </ScrollReveal>
+          <ScrollReveal>
+              <Projects projects={projects} />
+          </ScrollReveal>
+          <ScrollReveal>
+              <Contact contact={contact} />
+          </ScrollReveal>
+      </div>
+
   );
 };
 
@@ -184,125 +168,144 @@ export default App;
 
 
 ===== src/components/About.tsx =====
-import React from "react"; // 引入 React
-import type { AboutInfo } from "../types"; // 导入 AboutInfo 接口类型，用于约束 props
+import React from "react";
+import type { AboutInfo } from "../types";
 
-// 定义组件接收的 props 类型
 interface AboutProps {
-  about: AboutInfo; // about 对象必须符合 AboutInfo 接口
+  about: AboutInfo;
 }
 
-// 定义 About 组件，使用 React.FC 泛型指定 props 类型
 const About: React.FC<AboutProps> = ({ about }) => {
   return (
-    <section className="about">
-      {/* 如果有头像，就显示 img 标签 */}
-      {about.avatar && <img src={about.avatar} alt="头像" className="avatar" />}
-      {/* 显示个人简介文字 */}
-      <p>{about.bio}</p>
+      <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <div className="flex flex-col md:flex-row items-center gap-6">
+        {about.avatar && (
+          <img
+            src={about.avatar}
+            alt="头像"
+            className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+          />
+        )}
+        <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+          {about.bio}
+        </p>
+      </div>
     </section>
   );
 };
 
-export default About; // 导出组件以供其他文件使用
+export default About;
 
 
 ===== src/components/Contact.tsx =====
-import React from "react"; // 引入 React
-import type { ContactInfo } from "../types"; // 导入 ContactInfo 接口类型
+import React from "react";
+import type { ContactInfo } from "../types";
 
-// 定义组件接收的 props 类型
 interface ContactProps {
-  contact: ContactInfo; // contact 对象必须符合 ContactInfo 接口
+  contact: ContactInfo;
 }
 
-// 定义 Contact 组件
-const Contact: React.FC<ContactProps> = ({ contact }) => (
-  <section className="contact">
-    <h2>联系方式</h2> {/* 模块标题 */}
+const Contact: React.FC<ContactProps> = ({ contact }) => {
+  return (
+    <section className="py-8 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+        联系我
+      </h2>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="text-gray-700 dark:text-gray-300">📧</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            {contact.email}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-700 dark:text-gray-300">💻</span>
+          <a
+            href={contact.github}
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            GitHub
+          </a>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-700 dark:text-gray-300">👔</span>
+          <a
+            href={contact.linkedin}
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            LinkedIn
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+};
 
-    <ul>
-      {/* 邮箱是必填项，直接显示 */}
-      <li>Email: {contact.email}</li>
-
-      {/* 如果有电话才显示 */}
-      {contact.phone && <li>Phone: {contact.phone}</li>}
-
-      {/* 如果有 GitHub 地址才显示链接 */}
-      {contact.github && (
-        <li>
-          GitHub: <a href={contact.github}>{contact.github}</a>
-        </li>
-      )}
-
-      {/* 如果有 LinkedIn 地址才显示链接 */}
-      {contact.linkedin && (
-        <li>
-          LinkedIn: <a href={contact.linkedin}>{contact.linkedin}</a>
-        </li>
-      )}
-    </ul>
-  </section>
-);
-
-export default Contact; // 导出组件
+export default Contact;
 
 
 ===== src/components/Header.tsx =====
-import React from "react"; // 引入 React 库，必须的
+import React from "react";
 
-// 定义组件接收的 props 类型
 interface HeaderProps {
-  name: string; // 姓名
-  title: string; // 职位或头衔
+  name: string;
+  title: string;
 }
 
-// 定义 Header 组件，使用 React.FC 泛型指定 props 类型
 const Header: React.FC<HeaderProps> = ({ name, title }) => {
   return (
-    // 页面头部标签，类名用于样式
-    <header className="header">
-      <h1>{name}</h1> {/* 显示姓名 */}
-      <h3>{title}</h3> {/* 显示职位/头衔 */}
+    <header className="text-center py-8 bg-white dark:bg-gray-900 transition-colors duration-300">
+      <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+        {name}
+      </h1>
+      <h3 className="text-xl text-gray-600 dark:text-gray-300">{title}</h3>
     </header>
   );
 };
 
-export default Header; // 导出组件，以便其他文件导入使用
+export default Header;
 
 
 ===== src/components/Projects.tsx =====
-import React from "react"; // 引入 React
-import type { Project } from "../types"; // 导入 Project 接口类型
+import React from "react";
+import type { Project } from "../types";
 
-// 定义组件接收的 props 类型
 interface ProjectsProps {
-  projects: Project[]; // projects 是一个 Project 类型的数组
+  projects: Project[];
 }
 
-// 定义 Projects 组件
-const Projects: React.FC<ProjectsProps> = ({ projects }) => (
-  <section className="projects">
-    <h2>项目经验</h2> {/* 模块标题 */}
-
-    {/* 遍历 projects 数组，渲染每个项目 */}
-    {projects.map((p, i) => (
-      <div key={i}> {/* 每个项目一个容器 */}
-        <h3>{p.name}</h3> {/* 项目名称 */}
-        <p>{p.description}</p> {/* 项目描述 */}
-
-        {/* 如果有项目链接才显示链接 */}
-        {p.link && (
-          <a href={p.link} target="_blank">
-            查看项目
-          </a>
-        )}
+const Projects: React.FC<ProjectsProps> = ({ projects }) => {
+  return (
+    <section className="py-8 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+        项目
+      </h2>
+      <div className="space-y-4">
+        {projects.map((project, index) => (
+          <div
+            key={index}
+            className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg"
+          >
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+              {project.name}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
+              {project.description}
+            </p>
+            <a
+              href={project.link}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              查看项目
+            </a>
+          </div>
+        ))}
       </div>
-    ))}
-  </section>
-);
+    </section>
+  );
+};
 
-export default Projects; // 导出组件
+export default Projects;
 
 
 ===== src/components/ScrollReveal.tsx =====
@@ -316,14 +319,11 @@ interface ScrollRevealProps {
 const ScrollReveal: FC<ScrollRevealProps> = ({ children }) => {
   const { ref, inView } = useInView({
     triggerOnce: true, // 只触发一次
-    threshold: 0.2,    // 20% 出现在视口才触发
+    threshold: 0.2, // 20% 出现在视口才触发
   });
 
   return (
-    <div
-      ref={ref}
-      className={`scroll-section ${inView ? "show" : ""}`}
-    >
+    <div ref={ref} className={`scroll-section ${inView ? "show" : ""}`}>
       {children}
     </div>
   );
@@ -334,39 +334,37 @@ export default ScrollReveal;
 
 ===== src/components/Skills.tsx =====
 import type { FC } from "react";
-import {useEffect, useState } from "react";
-import { skills } from "../data/skills"; // 确保 skills 数据正确
-import type { Skill } from "../data/skills"; // 确保 Skill 类型正确
+import { useEffect, useState } from "react";
+import { skills } from "../data/skills";
+import type { Skill } from "../data/skills";
 import { useInView } from "react-intersection-observer";
 
 const Skills: FC = () => {
+  // 监听整个 Skills 区块是否进入视口
   const { ref, inView } = useInView({ triggerOnce: true });
 
   // 初始化每个技能等级为 0
   const [animatedLevels, setAnimatedLevels] = useState<Skill[]>(
-    skills.map(s => ({ ...s, level: 0 }))
+    skills.map((s) => ({ ...s, level: 0 })),
   );
 
-  // 使用 useEffect 动画显示技能条
+  // 组件挂载后，如果 inView 为 true，依次动画每个技能条
   useEffect(() => {
     if (!inView) return;
 
-    console.log("Skills in view, starting animation");
-
-    // 动画执行：依次显示每个技能条的进度
     skills.forEach((skill, idx) => {
       setTimeout(() => {
-        setAnimatedLevels(prev => {
-          const updated = [...prev];
-          updated[idx] = { ...updated[idx], level: skill.level };
-          return updated;
+        setAnimatedLevels((prev) => {
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], level: skill.level };
+          return copy;
         });
       }, idx * 200); // 每个技能条延迟 200ms 动画
     });
   }, [inView]);
 
   return (
-    <section ref={ref} className="max-w-4xl mx-auto p-6">
+      <section ref={ref} className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg transition-colors duration-300">
       <h2 className="text-2xl font-bold mb-4">Skills</h2>
       <div className="space-y-4">
         {animatedLevels.map((skill) => (
@@ -375,13 +373,10 @@ const Skills: FC = () => {
               <span className="font-medium">{skill.name}</span>
               <span className="text-sm">{skill.level}%</span>
             </div>
-            <div className="w-full bg-gray-200 h-4 rounded overflow-hidden">
+            <div className="w-full bg-gray-200 h-4 rounded overflow-hidden shadow-inner">
               <div
-                className="bg-blue-500 h-4 rounded"
-                style={{
-                  width: `${skill.level}%`, // 动态设置进度条的宽度
-                  transition: "width 1s ease-out", // 添加平滑过渡
-                }}
+                className="bg-blue-500 h-4 rounded transition-all duration-1000 ease-out shadow-md"
+                style={{ width: `${skill.level}%` }}
               ></div>
             </div>
           </div>
@@ -392,6 +387,55 @@ const Skills: FC = () => {
 };
 
 export default Skills;
+
+
+===== src/components/common/Button.tsx =====
+import type { FC, ButtonHTMLAttributes } from "react";
+
+const Button: FC<ButtonHTMLAttributes<HTMLButtonElement>> = (props) => (
+  <button
+    {...props}
+    className="rounded border border-transparent px-4 py-2 font-medium cursor-pointer transition-colors duration-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+  />
+);
+
+export default Button;
+
+
+===== src/components/common/Card.tsx =====
+import type { FC, ReactNode } from "react";
+
+interface CardProps {
+  children: ReactNode;
+}
+
+const Card: FC<CardProps> = ({ children }) => (
+  <div className="p-4 border rounded-lg bg-white dark:bg-gray-800 shadow hover:shadow-lg transition-shadow mb-4">
+    {children}
+  </div>
+);
+
+export default Card;
+
+
+===== src/components/common/Section.tsx =====
+import type { FC, ReactNode } from "react";
+
+interface SectionProps {
+  title?: string;
+  children: ReactNode;
+}
+
+const Section: FC<SectionProps> = ({ title, children }) => {
+  return (
+    <section className="mb-8">
+      {title && <h2 className="text-2xl font-bold mb-4">{title}</h2>}
+      {children}
+    </section>
+  );
+};
+
+export default Section;
 
 
 ===== src/data/skills.ts =====
@@ -411,77 +455,19 @@ export const skills: Skill[] = [
 
 
 ===== src/index.css =====
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
 @import "tailwindcss";
 
-
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
+/* 基础样式，让Tailwind处理主题切换 */
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
 
 ===== src/main.tsx =====
 import { StrictMode } from 'react'
@@ -531,6 +517,22 @@ export interface AboutInfo {
   bio: string; // 简介文字
   avatar?: string; // 可选头像 URL
 }
+
+
+===== tailwind.config.js =====
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class', // ✅ 确保是 class 模式
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        // 可以在这里扩展自定义颜色
+      },
+    },
+  },
+  plugins: [],
+};
 
 
 ===== vite.config.ts =====
