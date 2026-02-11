@@ -73,3 +73,9 @@ export default defineConfig([
 ```
 
 Cmd + Shift + P → TypeScript: Restart TS Server
+
+npm install react-intersection-observer
+
+npm install -D @vitejs/plugin-vue tailwindcss postcss autoprefixer
+
+npx tailwindcss init

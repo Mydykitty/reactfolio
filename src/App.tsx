@@ -1,18 +1,12 @@
 import React from "react";
 import Header from "./components/Header";
-import About from "./components/about";
-import Skills from "./components/skills";
-import Projects from "./components/projects";
-import Contact from "./components/contact";
-import type { Skill, Project, ContactInfo, AboutInfo } from "./types";
+import About from "./components/About";
+import Skills from "./components/Skills";
+import Projects from "./components/Projects";
+import Contact from "./components/Contact";
+import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import "./App.css";
-
-const skills: Skill[] = [
-  { name: "React", level: "Intermediate" },
-  { name: "TypeScript", level: "Intermediate" },
-  { name: "CSS", level: "Advanced" },
-];
 
 const projects: Project[] = [
   { name: "个人简历网页", description: "用React + TypeScript制作的个人简历网页", link: "#" },
@@ -33,7 +27,7 @@ const App: React.FC = () => (
   <div className="app">
     <Header name="张三" title="前端开发工程师" />
     <About about={about} />
-    <Skills skills={skills} />
+    <Skills/>
     <Projects projects={projects} />
     <Contact contact={contact} />
   </div>
