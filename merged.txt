@@ -5,6 +5,7 @@ body {
   background: #f5f5f5;            /* 页面背景色（浅灰） */
   margin: 0;                      /* 去掉浏览器默认外边距 */
   padding: 0;                     /* 去掉浏览器默认内边距 */
+  transition: background-color 0.3s, color 0.3s; /* 添加过渡效果 */
 }
 
 /* 整个应用的外层容器 */
@@ -14,6 +15,7 @@ body {
   padding: 20px;                  /* 内边距 */
   background: #fff;               /* 白色背景 */
   border-radius: 8px;             /* 圆角 */
+  transition: background-color 0.3s; /* 添加过渡效果 */
 }
 
 /* 头部区域样式 */
@@ -25,6 +27,7 @@ header {
 /* 头部里的 h1 */
 header h1 {
   margin: 0;                      /* 去掉默认外边距 */
+  transition: color 0.3s;          /* 添加过渡效果 */
 }
 
 /* 头像图片样式 */
@@ -42,11 +45,69 @@ section {
 a {
   color: #007acc;                 /* 链接颜色 */
   text-decoration: none;          /* 去掉下划线 */
+  transition: color 0.3s;          /* 添加过渡效果 */
+}
+
+/* 暗黑模式 */
+body.dark {
+  background: #242424;            /* 页面背景色（深色） */
+  color: #fff;                    /* 文字颜色（白色） */
+}
+
+/* 整个应用容器的背景颜色改为深色 */
+body.dark .app {
+  background: #333;               /* 深色背景 */
+}
+
+/* 头部字体颜色改为白色 */
+body.dark header h1 {
+  color: #fff;
+}
+
+/* 头像图片样式（不变） */
+
+/* 每个 section 模块在暗黑模式下字体颜色也改为白色 */
+body.dark section {
+  color: #fff;
+}
+
+/* 链接样式改为亮色 */
+body.dark a {
+  color: #4d90fe; /* 亮色的链接 */
+}
+
+/* 鼠标悬停时链接颜色加深 */
+body.dark a:hover {
+  color: #76aaff;
+}
+
+/* 按钮的样式（如果你有按钮的话） */
+body.dark button {
+  background: #444;
+  color: #fff;
+  border: 1px solid #555;
+}
+
+body.dark button:hover {
+  background: #555;
+}
+
+/* 初始状态 */
+.scroll-section {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s ease;
+}
+
+/* 出现状态 */
+.scroll-section.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 
 ===== src/App.tsx =====
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Header from "./components/Header";
 import About from "./components/About";
 import Skills from "./components/Skills";
@@ -55,9 +116,14 @@ import Contact from "./components/Contact";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import "./App.css";
+import ScrollReveal from "./components/ScrollReveal";
 
 const projects: Project[] = [
-  { name: "个人简历网页", description: "用React + TypeScript制作的个人简历网页", link: "#" },
+  {
+    name: "个人简历网页",
+    description: "用React + TypeScript制作的个人简历网页",
+    link: "#",
+  },
 ];
 
 const contact: ContactInfo = {
@@ -71,15 +137,48 @@ const about: AboutInfo = {
   avatar: avatarImg,
 };
 
-const App: React.FC = () => (
-  <div className="app">
-    <Header name="张三" title="前端开发工程师" />
-    <About about={about} />
-    <Skills/>
-    <Projects projects={projects} />
-    <Contact contact={contact} />
-  </div>
-);
+const App: React.FC = () => {
+  const [darkMode, setDarkMode] = useState(false);
+
+  // 使用 useEffect 来加载并设置主题
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) {
+      setDarkMode(savedTheme === "dark");
+    }
+  }, []);
+
+  // 切换主题
+  const toggleTheme = () => {
+    setDarkMode((prev) => {
+      const newTheme = !prev;
+      localStorage.setItem("theme", newTheme ? "dark" : "light");
+      document.body.classList.toggle("dark", newTheme);
+      return newTheme;
+    });
+  };
+
+  return (
+    <div className="app">
+      <button onClick={toggleTheme} className="theme-toggle-btn">
+        {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
+      </button>
+      <Header name="张三" title="前端开发工程师" />
+      <ScrollReveal>
+        <About about={about} />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Skills />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Projects projects={projects} />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Contact contact={contact} />
+      </ScrollReveal>
+    </div>
+  );
+};
 
 export default App;
 
@@ -204,6 +303,33 @@ const Projects: React.FC<ProjectsProps> = ({ projects }) => (
 );
 
 export default Projects; // 导出组件
+
+
+===== src/components/ScrollReveal.tsx =====
+import { useInView } from "react-intersection-observer";
+import type { FC, ReactNode } from "react";
+
+interface ScrollRevealProps {
+  children: ReactNode;
+}
+
+const ScrollReveal: FC<ScrollRevealProps> = ({ children }) => {
+  const { ref, inView } = useInView({
+    triggerOnce: true, // 只触发一次
+    threshold: 0.2,    // 20% 出现在视口才触发
+  });
+
+  return (
+    <div
+      ref={ref}
+      className={`scroll-section ${inView ? "show" : ""}`}
+    >
+      {children}
+    </div>
+  );
+};
+
+export default ScrollReveal;
 
 
 ===== src/components/Skills.tsx =====
