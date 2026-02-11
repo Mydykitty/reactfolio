@@ -1,0 +1,424 @@
+===== src/App.css =====
+/* 设置整个页面的基础样式 */
+body {
+  font-family: Arial, sans-serif; /* 全局字体 */
+  background: #f5f5f5;            /* 页面背景色（浅灰） */
+  margin: 0;                      /* 去掉浏览器默认外边距 */
+  padding: 0;                     /* 去掉浏览器默认内边距 */
+}
+
+/* 整个应用的外层容器 */
+.app {
+  max-width: 800px;               /* 最大宽度，防止内容过宽 */
+  margin: 20px auto;              /* 上下 20px，左右居中 */
+  padding: 20px;                  /* 内边距 */
+  background: #fff;               /* 白色背景 */
+  border-radius: 8px;             /* 圆角 */
+}
+
+/* 头部区域样式 */
+header {
+  text-align: center;             /* 内容居中 */
+  margin-bottom: 20px;            /* 下方留空 */
+}
+
+/* 头部里的 h1 */
+header h1 {
+  margin: 0;                      /* 去掉默认外边距 */
+}
+
+/* 头像图片样式 */
+.avatar {
+  width: 120px;                   /* 固定宽度 */
+  border-radius: 50%;             /* 圆形头像 */
+}
+
+/* 每个 section 模块 */
+section {
+  margin-bottom: 20px;            /* 模块之间的间距 */
+}
+
+/* 链接样式 */
+a {
+  color: #007acc;                 /* 链接颜色 */
+  text-decoration: none;          /* 去掉下划线 */
+}
+
+
+===== src/App.tsx =====
+import React from "react";
+import Header from "./components/Header";
+import About from "./components/About";
+import Skills from "./components/Skills";
+import Projects from "./components/Projects";
+import Contact from "./components/Contact";
+import type { Project, ContactInfo, AboutInfo } from "./types";
+import avatarImg from "./assets/avatar.png";
+import "./App.css";
+
+const projects: Project[] = [
+  { name: "个人简历网页", description: "用React + TypeScript制作的个人简历网页", link: "#" },
+];
+
+const contact: ContactInfo = {
+  email: "yourname@example.com",
+  github: "https://github.com/yourname",
+  linkedin: "https://linkedin.com/in/yourname",
+};
+
+const about: AboutInfo = {
+  bio: "前端开发工程师，热爱 React 和 TypeScript，喜欢制作简洁美观的网页。",
+  avatar: avatarImg,
+};
+
+const App: React.FC = () => (
+  <div className="app">
+    <Header name="张三" title="前端开发工程师" />
+    <About about={about} />
+    <Skills/>
+    <Projects projects={projects} />
+    <Contact contact={contact} />
+  </div>
+);
+
+export default App;
+
+
+===== src/components/About.tsx =====
+import React from "react"; // 引入 React
+import type { AboutInfo } from "../types"; // 导入 AboutInfo 接口类型，用于约束 props
+
+// 定义组件接收的 props 类型
+interface AboutProps {
+  about: AboutInfo; // about 对象必须符合 AboutInfo 接口
+}
+
+// 定义 About 组件，使用 React.FC 泛型指定 props 类型
+const About: React.FC<AboutProps> = ({ about }) => {
+  return (
+    <section className="about">
+      {/* 如果有头像，就显示 img 标签 */}
+      {about.avatar && <img src={about.avatar} alt="头像" className="avatar" />}
+      {/* 显示个人简介文字 */}
+      <p>{about.bio}</p>
+    </section>
+  );
+};
+
+export default About; // 导出组件以供其他文件使用
+
+
+===== src/components/Contact.tsx =====
+import React from "react"; // 引入 React
+import type { ContactInfo } from "../types"; // 导入 ContactInfo 接口类型
+
+// 定义组件接收的 props 类型
+interface ContactProps {
+  contact: ContactInfo; // contact 对象必须符合 ContactInfo 接口
+}
+
+// 定义 Contact 组件
+const Contact: React.FC<ContactProps> = ({ contact }) => (
+  <section className="contact">
+    <h2>联系方式</h2> {/* 模块标题 */}
+
+    <ul>
+      {/* 邮箱是必填项，直接显示 */}
+      <li>Email: {contact.email}</li>
+
+      {/* 如果有电话才显示 */}
+      {contact.phone && <li>Phone: {contact.phone}</li>}
+
+      {/* 如果有 GitHub 地址才显示链接 */}
+      {contact.github && (
+        <li>
+          GitHub: <a href={contact.github}>{contact.github}</a>
+        </li>
+      )}
+
+      {/* 如果有 LinkedIn 地址才显示链接 */}
+      {contact.linkedin && (
+        <li>
+          LinkedIn: <a href={contact.linkedin}>{contact.linkedin}</a>
+        </li>
+      )}
+    </ul>
+  </section>
+);
+
+export default Contact; // 导出组件
+
+
+===== src/components/Header.tsx =====
+import React from "react"; // 引入 React 库，必须的
+
+// 定义组件接收的 props 类型
+interface HeaderProps {
+  name: string; // 姓名
+  title: string; // 职位或头衔
+}
+
+// 定义 Header 组件，使用 React.FC 泛型指定 props 类型
+const Header: React.FC<HeaderProps> = ({ name, title }) => {
+  return (
+    // 页面头部标签，类名用于样式
+    <header className="header">
+      <h1>{name}</h1> {/* 显示姓名 */}
+      <h3>{title}</h3> {/* 显示职位/头衔 */}
+    </header>
+  );
+};
+
+export default Header; // 导出组件，以便其他文件导入使用
+
+
+===== src/components/Projects.tsx =====
+import React from "react"; // 引入 React
+import type { Project } from "../types"; // 导入 Project 接口类型
+
+// 定义组件接收的 props 类型
+interface ProjectsProps {
+  projects: Project[]; // projects 是一个 Project 类型的数组
+}
+
+// 定义 Projects 组件
+const Projects: React.FC<ProjectsProps> = ({ projects }) => (
+  <section className="projects">
+    <h2>项目经验</h2> {/* 模块标题 */}
+
+    {/* 遍历 projects 数组，渲染每个项目 */}
+    {projects.map((p, i) => (
+      <div key={i}> {/* 每个项目一个容器 */}
+        <h3>{p.name}</h3> {/* 项目名称 */}
+        <p>{p.description}</p> {/* 项目描述 */}
+
+        {/* 如果有项目链接才显示链接 */}
+        {p.link && (
+          <a href={p.link} target="_blank">
+            查看项目
+          </a>
+        )}
+      </div>
+    ))}
+  </section>
+);
+
+export default Projects; // 导出组件
+
+
+===== src/components/Skills.tsx =====
+import type { FC } from "react";
+import {useEffect, useState } from "react";
+import { skills } from "../data/skills"; // 确保 skills 数据正确
+import type { Skill } from "../data/skills"; // 确保 Skill 类型正确
+import { useInView } from "react-intersection-observer";
+
+const Skills: FC = () => {
+  const { ref, inView } = useInView({ triggerOnce: true });
+
+  // 初始化每个技能等级为 0
+  const [animatedLevels, setAnimatedLevels] = useState<Skill[]>(
+    skills.map(s => ({ ...s, level: 0 }))
+  );
+
+  // 使用 useEffect 动画显示技能条
+  useEffect(() => {
+    if (!inView) return;
+
+    console.log("Skills in view, starting animation");
+
+    // 动画执行：依次显示每个技能条的进度
+    skills.forEach((skill, idx) => {
+      setTimeout(() => {
+        setAnimatedLevels(prev => {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], level: skill.level };
+          return updated;
+        });
+      }, idx * 200); // 每个技能条延迟 200ms 动画
+    });
+  }, [inView]);
+
+  return (
+    <section ref={ref} className="max-w-4xl mx-auto p-6">
+      <h2 className="text-2xl font-bold mb-4">Skills</h2>
+      <div className="space-y-4">
+        {animatedLevels.map((skill) => (
+          <div key={skill.name}>
+            <div className="flex justify-between mb-1">
+              <span className="font-medium">{skill.name}</span>
+              <span className="text-sm">{skill.level}%</span>
+            </div>
+            <div className="w-full bg-gray-200 h-4 rounded overflow-hidden">
+              <div
+                className="bg-blue-500 h-4 rounded"
+                style={{
+                  width: `${skill.level}%`, // 动态设置进度条的宽度
+                  transition: "width 1s ease-out", // 添加平滑过渡
+                }}
+              ></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+export default Skills;
+
+
+===== src/data/skills.ts =====
+export interface Skill {
+  name: string;
+  level: number; // 0~100
+}
+
+export const skills: Skill[] = [
+  { name: "HTML", level: 90 },
+  { name: "CSS", level: 85 },
+  { name: "JavaScript", level: 80 },
+  { name: "TypeScript", level: 75 },
+  { name: "React", level: 85 },
+  { name: "TailwindCSS", level: 70 },
+];
+
+
+===== src/index.css =====
+@import "tailwindcss/preflight";
+@import "tailwindcss/utilities";
+@import "tailwindcss";
+
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+===== src/main.tsx =====
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+===== src/types/index.ts =====
+// 定义技能信息
+export interface Skill {
+  name: string; // 技能名称，字符串类型
+  level: "Beginner" | "Intermediate" | "Advanced"; // 技能等级，只能是这三个值之一
+}
+
+// 定义项目经历
+export interface Project {
+  name: string; // 项目名称
+  description: string; // 项目描述
+  link?: string; // 可选，项目链接
+}
+
+// 定义教育经历
+export interface Education {
+  school: string; // 学校名称
+  degree: string; // 学位
+  startYear: number; // 入学年份
+  endYear: number; // 毕业年份
+}
+
+// 定义联系方式
+export interface ContactInfo {
+  email: string; // 必填邮箱
+  phone?: string; // 可选电话
+  github?: string; // 可选 GitHub 地址
+  linkedin?: string; // 可选 LinkedIn 地址
+}
+
+// 定义个人简介信息
+export interface AboutInfo {
+  bio: string; // 简介文字
+  avatar?: string; // 可选头像 URL
+}
+
+
+===== vite.config.ts =====
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
+});
+

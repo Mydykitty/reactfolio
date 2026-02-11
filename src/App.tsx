@@ -1,12 +1,12 @@
-import React from "react";
-import Header from "./components/Header";
-import About from "./components/About";
-import Skills from "./components/Skills";
-import Projects from "./components/Projects";
-import Contact from "./components/Contact";
-import type { Project, ContactInfo, AboutInfo } from "./types";
-import avatarImg from "./assets/avatar.png";
-import "./App.css";
+import React, { useState, useEffect } from 'react';
+import Header from './components/Header';
+import About from './components/About';
+import Skills from './components/Skills';
+import Projects from './components/Projects';
+import Contact from './components/Contact';
+import type { Project, ContactInfo, AboutInfo } from './types';
+import avatarImg from './assets/avatar.png';
+import './App.css';
 
 const projects: Project[] = [
   { name: "个人简历网页", description: "用React + TypeScript制作的个人简历网页", link: "#" },
@@ -23,14 +23,39 @@ const about: AboutInfo = {
   avatar: avatarImg,
 };
 
-const App: React.FC = () => (
-  <div className="app">
-    <Header name="张三" title="前端开发工程师" />
-    <About about={about} />
-    <Skills/>
-    <Projects projects={projects} />
-    <Contact contact={contact} />
-  </div>
-);
+const App: React.FC = () => {
+  const [darkMode, setDarkMode] = useState(false);
+
+  // 使用 useEffect 来加载并设置主题
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setDarkMode(savedTheme === 'dark');
+    }
+  }, []);
+
+  // 切换主题
+  const toggleTheme = () => {
+    setDarkMode(prev => {
+      const newTheme = !prev;
+      localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+      document.body.classList.toggle('dark', newTheme);
+      return newTheme;
+    });
+  };
+
+  return (
+    <div className="app">
+      <button onClick={toggleTheme} className="theme-toggle-btn">
+        {darkMode ? '切换到亮色模式' : '切换到暗黑模式'}
+      </button>
+      <Header name="张三" title="前端开发工程师" />
+      <About about={about} />
+      <Skills />
+      <Projects projects={projects} />
+      <Contact contact={contact} />
+    </div>
+  );
+};
 
 export default App;
