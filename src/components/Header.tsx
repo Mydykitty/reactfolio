@@ -14,12 +14,7 @@ const Header: React.FC<HeaderProps> = ({ name, title }) => {
       </h1>
       <h3 className="text-xl text-gray-600 dark:text-gray-300">
         <Typewriter
-          texts={[
-            "前端开发工程师",
-            "React 爱好者",
-            "TypeScript 玩家",
-            "UI 设计控",
-          ]}
+          texts={[title, "React 爱好者", "TypeScript 玩家", "UI 设计控"]}
         />
       </h3>
     </header>
