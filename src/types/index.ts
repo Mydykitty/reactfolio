@@ -9,6 +9,8 @@ export interface Project {
   name: string; // 项目名称
   description: string; // 项目描述
   link?: string; // 可选，项目链接
+  category?: string;    // 新增
+  tags?: string[];      // 新增
 }
 
 // 定义教育经历

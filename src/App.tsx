@@ -10,11 +10,29 @@ import Button from "./components/common/Button";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 
+// 替换原来的 projects 数组
 const projects: Project[] = [
   {
     name: "个人简历网页",
-    description: "用React + TypeScript制作的个人简历网页",
+    description:
+      "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
     link: "#",
+    category: "react", // 新增分类
+    tags: ["React", "TypeScript", "Tailwind"], // 新增标签
+  },
+  {
+    name: "待办清单应用",
+    description: "全栈待办应用，React + Node.js + MongoDB",
+    link: "#",
+    category: "fullstack",
+    tags: ["React", "Node.js", "MongoDB"],
+  },
+  {
+    name: "天气查询小程序",
+    description: "实时天气查询，调用第三方API",
+    link: "#",
+    category: "vanilla",
+    tags: ["JavaScript", "API"],
   },
 ];
 
