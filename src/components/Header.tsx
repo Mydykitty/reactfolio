@@ -1,4 +1,5 @@
 import React from "react";
+import Typewriter from "./Typewriter";
 
 interface HeaderProps {
   name: string;
@@ -11,7 +12,16 @@ const Header: React.FC<HeaderProps> = ({ name, title }) => {
       <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
         {name}
       </h1>
-      <h3 className="text-xl text-gray-600 dark:text-gray-300">{title}</h3>
+      <h3 className="text-xl text-gray-600 dark:text-gray-300">
+        <Typewriter
+          texts={[
+            "前端开发工程师",
+            "React 爱好者",
+            "TypeScript 玩家",
+            "UI 设计控",
+          ]}
+        />
+      </h3>
     </header>
   );
 };
