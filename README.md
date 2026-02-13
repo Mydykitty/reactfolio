@@ -52,6 +52,11 @@ npm install react-intersection-observer
 npm install -D @vitejs/plugin-vue tailwindcss postcss autoprefixer
 
 npx tailwindcss init
+
+npm install framer-motion
+
+npm install @supabase/supabase-js
+
 ```
 
 ## 🚧 开发计划

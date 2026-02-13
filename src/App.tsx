@@ -6,6 +6,7 @@ import Projects from "./components/Projects";
 import Contact from "./components/Contact";
 import BackToTop from "./components/BackToTop";
 import ScrollReveal from "./components/ScrollReveal";
+import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
@@ -88,6 +89,9 @@ const App: React.FC = () => {
       </ScrollReveal>
       <ScrollReveal>
         <Contact contact={contact} />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Guestbook />
       </ScrollReveal>
       <BackToTop />
     </div>
