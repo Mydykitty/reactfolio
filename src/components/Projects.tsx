@@ -9,7 +9,14 @@ const Projects: React.FC<ProjectsProps> = ({ projects }) => {
   const [filter, setFilter] = useState("all");
 
   // 获取所有分类（去重）
-  const categories = ["all", ...new Set(projects.map((p) => p.category))];
+  const categories = [
+    "all",
+    ...new Set(
+      projects
+        .map((p) => p.category)
+        .filter((c): c is string => c !== undefined), // 只保留 string
+    ),
+  ];
 
   // 筛选项目
   const filteredProjects =
