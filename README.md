@@ -1,77 +1,50 @@
-# React + TypeScript + Vite
+# 个人简历网站 - React + TypeScript + TailwindCSS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![项目截图](./screenshot.png)
 
-Currently, two official plugins are available:
+<div align="center">
+  
+  [![Vercel](https://img.shields.io/badge/在线预览-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/mydykittys-projects/reactfolio)
+  [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://https://github.com/Mydykitty/reactfolio)
+  
+</div>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ 在线体验
 
-## React Compiler
+👉 **[点击这里查看在线 Demo](https://vercel.com/mydykittys-projects/reactfolio)**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🎯 项目亮点
 
-## Expanding the ESLint configuration
+- ⚡ **Vite + React** - 极速开发体验
+- 📘 **TypeScript** - 类型安全，减少bug
+- 🌓 **深色模式** - 支持系统主题跟随，手动切换
+- 📱 **响应式设计** - 手机/平板/桌面完美适配
+- 🎨 **TailwindCSS** - 原子化CSS，开发效率++
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ 技术栈
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+- **前端框架**: React 18
+- **语言**: TypeScript
+- **样式**: TailwindCSS
+- **构建工具**: Vite
+- **代码规范**: ESLint + Prettier
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🚀 快速开始
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
+```bash
+# 克隆项目
+git clone https://github.com/Mydykitty/reactfolio.git
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+# 安装依赖
+npm install
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+# 开发环境
+npm run dev
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
+# 生产构建
+npm run build
 
+# 本地可参考命令
 Cmd + Shift + P → TypeScript: Restart TS Server
 
 npm install react-intersection-observer
@@ -79,3 +52,18 @@ npm install react-intersection-observer
 npm install -D @vitejs/plugin-vue tailwindcss postcss autoprefixer
 
 npx tailwindcss init
+```
+
+## 🚧 开发计划
+
+基础简历展示
+
+深色模式切换
+
+滚动动画效果
+
+博客模块
+
+多语言支持
+
+单元测试

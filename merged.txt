@@ -34,58 +34,6 @@ export default {
 };
 
 
-===== src/App.css =====
-/* src/App.css */
-
-/* 设置整个页面的基础样式 */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  transition: background-color 0.3s, color 0.3s;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-/* 整个应用的外层容器，只保留布局和过渡 */
-.app {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 20px;
-  border-radius: 8px;
-  transition: background-color 0.3s, color 0.3s;
-}
-
-/* 头部区域样式 */
-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-/* 头部里的 h1 */
-header h1 {
-  margin: 0;
-  transition: color 0.3s;
-}
-
-/* 头像图片样式 */
-.avatar {
-  width: 120px;
-  border-radius: 50%;
-}
-
-/* 每个 section 模块，只留 margin */
-section {
-  margin-bottom: 20px;
-}
-
-/* 链接样式，只留颜色过渡 */
-a {
-  text-decoration: none;
-  transition: color 0.3s;
-}
-
-
 ===== src/App.tsx =====
 import React, { useState, useEffect } from "react";
 import Header from "./components/Header";
@@ -138,29 +86,28 @@ const App: React.FC = () => {
   };
 
   return (
-      <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-          <div className="flex justify-end mb-4">
-              <Button onClick={toggleTheme}>
-                  {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
-              </Button>
-          </div>
-
-          <Header name="张三" title="前端开发工程师" />
-
-          <ScrollReveal>
-              <About about={about} />
-          </ScrollReveal>
-          <ScrollReveal>
-              <Skills />
-          </ScrollReveal>
-          <ScrollReveal>
-              <Projects projects={projects} />
-          </ScrollReveal>
-          <ScrollReveal>
-              <Contact contact={contact} />
-          </ScrollReveal>
+    <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
+      <div className="flex justify-end mb-4">
+        <Button onClick={toggleTheme}>
+          {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
+        </Button>
       </div>
 
+      <Header name="张三" title="前端开发工程师" />
+
+      <ScrollReveal>
+        <About about={about} />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Skills />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Projects projects={projects} />
+      </ScrollReveal>
+      <ScrollReveal>
+        <Contact contact={contact} />
+      </ScrollReveal>
+    </div>
   );
 };
 
@@ -177,7 +124,7 @@ interface AboutProps {
 
 const About: React.FC<AboutProps> = ({ about }) => {
   return (
-      <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+    <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
       <div className="flex flex-col md:flex-row items-center gap-6">
         {about.avatar && (
           <img
@@ -364,7 +311,10 @@ const Skills: FC = () => {
   }, [inView]);
 
   return (
-      <section ref={ref} className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg transition-colors duration-300">
+    <section
+      ref={ref}
+      className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg transition-colors duration-300"
+    >
       <h2 className="text-2xl font-bold mb-4">Skills</h2>
       <div className="space-y-4">
         {animatedLevels.map((skill) => (
@@ -456,6 +406,7 @@ export const skills: Skill[] = [
 
 ===== src/index.css =====
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *)); /* 手动启用 dark variant */
 
 /* 基础样式，让Tailwind处理主题切换 */
 body {
@@ -468,18 +419,29 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* src/index.css 末尾添加 */
+.scroll-section {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.scroll-section.show {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 ===== src/main.tsx =====
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App.tsx";
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>,
-)
+);
 
 
 ===== src/types/index.ts =====
