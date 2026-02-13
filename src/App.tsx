@@ -4,6 +4,7 @@ import About from "./components/About";
 import Skills from "./components/Skills";
 import Projects from "./components/Projects";
 import Contact from "./components/Contact";
+import BackToTop from "./components/BackToTop";
 import ScrollReveal from "./components/ScrollReveal";
 import Button from "./components/common/Button";
 import type { Project, ContactInfo, AboutInfo } from "./types";
@@ -70,6 +71,7 @@ const App: React.FC = () => {
       <ScrollReveal>
         <Contact contact={contact} />
       </ScrollReveal>
+      <BackToTop />
     </div>
   );
 };
