@@ -11,6 +11,8 @@ import Button from "./components/common/Button";
 import GitHubLogin from "./components/GitHubLogin";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
+import { useAuthStore } from "./store/authStore";
+import { supabase } from "./lib/supabase";
 
 // 替换原来的 projects 数组
 const projects: Project[] = [
@@ -52,13 +54,32 @@ const about: AboutInfo = {
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
-  // 初始化
+  // 获取 initialize 方法
+  const initialize = useAuthStore((state) => state.initialize);
+
+  // 初始化主题
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const isDark = savedTheme === "dark";
     setDarkMode(isDark);
-    document.documentElement.classList.toggle("dark", isDark); // ✅ html
+    document.documentElement.classList.toggle("dark", isDark);
   }, []);
+
+  // 初始化认证（关键修改！）
+  useEffect(() => {
+    initialize(); // 调用 authStore 的初始化方法
+
+    // 设置认证状态监听和清理
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      useAuthStore.setState({ user: session?.user || null });
+    });
+
+    return () => {
+      subscription.unsubscribe(); // 组件卸载时清理
+    };
+  }, [initialize]); // 添加 initialize 到依赖数组
 
   const toggleTheme = () => {
     setDarkMode((prev) => {
@@ -75,7 +96,7 @@ const App: React.FC = () => {
         <Button onClick={toggleTheme}>
           {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
         </Button>
-          <GitHubLogin />
+        <GitHubLogin />
       </div>
       <Header name="张三" title="前端开发工程师" />
 

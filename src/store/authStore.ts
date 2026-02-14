@@ -18,7 +18,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       // 初始状态
       user: null,
       isLoading: true,
@@ -71,16 +71,6 @@ export const useAuthStore = create<AuthState>()(
             set({ user: session.user });
           }
 
-          // 监听认证状态变化
-          const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
-              set({ user: session?.user || null });
-            }
-          );
-
-          // 清理函数（会在组件卸载时调用）
-          return () => subscription.unsubscribe();
-          
         } catch (error: any) {
           set({ error: error.message });
         } finally {
