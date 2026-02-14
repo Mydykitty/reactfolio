@@ -8,6 +8,7 @@ import BackToTop from "./components/BackToTop";
 import ScrollReveal from "./components/ScrollReveal";
 import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
+import GitHubLogin from "./components/GitHubLogin";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 
@@ -74,8 +75,8 @@ const App: React.FC = () => {
         <Button onClick={toggleTheme}>
           {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
         </Button>
+          <GitHubLogin />
       </div>
-
       <Header name="张三" title="前端开发工程师" />
 
       <ScrollReveal>

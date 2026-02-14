@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { useAuthStore } from "../store/authStore";
 
 interface Message {
   id: number;
@@ -31,12 +32,25 @@ const Guestbook = () => {
   // 发布留言
   const submitMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    // 检查是否登录
+    const user = useAuthStore.getState().user;
+    if (!user) {
+      alert("请先登录后再留言");
+      return;
+    }
+
     if (!name.trim() || !content.trim()) return;
 
+    // 提交时带上用户ID
     setLoading(true);
-    const { error } = await supabase
-      .from("messages")
-      .insert([{ name, content }]);
+    const { error } = await supabase.from("messages").insert([
+      {
+        name,
+        content,
+        user_id: user.id, // 新增：关联用户ID
+        user_name: user.user_metadata.user_name, // 新增：保存用户名
+      },
+    ]);
 
     if (!error) {
       setName("");

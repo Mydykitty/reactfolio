@@ -57,6 +57,14 @@ npm install framer-motion
 
 npm install @supabase/supabase-js
 
+npm install zustand
+
+Settings/Developer settings/ReactFolio
+
+Homepage URL：
+  本地部署：http://localhost:5173
+  线上部署：https://reactfolio-sooty.vercel.app/
+
 ```
 
 ## 🚧 开发计划
