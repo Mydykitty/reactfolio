@@ -9,6 +9,7 @@ import ScrollReveal from "./components/ScrollReveal";
 import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
 import GitHubLogin from "./components/GitHubLogin";
+import VisitorCounter from "./components/VisitorCounter";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
@@ -19,7 +20,8 @@ import { supabase } from "./lib/supabase";
 const projects: Project[] = [
   {
     name: "个人简历网页",
-    description: "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
+    description:
+      "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
     link: "#",
     category: "react",
     tags: ["React", "TypeScript", "Tailwind"],
@@ -102,40 +104,43 @@ const App: React.FC = () => {
   };
 
   return (
-      <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-        {/* 顶部工具栏 */}
-        <div className="flex justify-end gap-2 mb-4">
+    <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
+      {/* 顶部工具栏 */}
+      <div className="flex justify-between items-center mb-4">
+        <VisitorCounter />
+        <div className="flex gap-2">
           <Button onClick={toggleTheme}>
             {darkMode ? "☀️ 亮色模式" : "🌙 暗黑模式"}
           </Button>
           <GitHubLogin />
         </div>
-
-        {/* 主要内容区域 */}
-        <Header name="张三" title="前端开发工程师" />
-
-        <ScrollReveal>
-          <About about={about} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Skills />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Projects projects={projects} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Contact contact={contact} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Guestbook />
-        </ScrollReveal>
-
-        <BackToTop />
       </div>
+
+      {/* 主要内容区域 */}
+      <Header name="张三" title="前端开发工程师" />
+
+      <ScrollReveal>
+        <About about={about} />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Skills />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Projects projects={projects} />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Contact contact={contact} />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Guestbook />
+      </ScrollReveal>
+
+      <BackToTop />
+    </div>
   );
 };
 
