@@ -12,17 +12,17 @@ import GitHubLogin from "./components/GitHubLogin";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
+import { useLikeStore } from "./store/likeStore"; // 新增：导入点赞 store
 import { supabase } from "./lib/supabase";
 
-// 替换原来的 projects 数组
+// 项目数据
 const projects: Project[] = [
   {
     name: "个人简历网页",
-    description:
-      "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
+    description: "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
     link: "#",
-    category: "react", // 新增分类
-    tags: ["React", "TypeScript", "Tailwind"], // 新增标签
+    category: "react",
+    tags: ["React", "TypeScript", "Tailwind"],
   },
   {
     name: "待办清单应用",
@@ -54,8 +54,10 @@ const about: AboutInfo = {
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
-  // 获取 initialize 方法
+  // 获取 store 方法
   const initialize = useAuthStore((state) => state.initialize);
+  const user = useAuthStore((state) => state.user);
+  const fetchUserLikes = useLikeStore((state) => state.fetchUserLikes);
 
   // 初始化主题
   useEffect(() => {
@@ -65,11 +67,12 @@ const App: React.FC = () => {
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
-  // 初始化认证（关键修改！）
+  // 初始化认证和点赞数据
   useEffect(() => {
-    initialize(); // 调用 authStore 的初始化方法
+    // 初始化认证
+    initialize();
 
-    // 设置认证状态监听和清理
+    // 设置认证状态监听
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -77,46 +80,62 @@ const App: React.FC = () => {
     });
 
     return () => {
-      subscription.unsubscribe(); // 组件卸载时清理
+      subscription.unsubscribe();
     };
-  }, [initialize]); // 添加 initialize 到依赖数组
+  }, [initialize]);
 
+  // 当用户登录状态变化时，获取用户的点赞数据
+  useEffect(() => {
+    if (user) {
+      fetchUserLikes();
+    }
+  }, [user, fetchUserLikes]);
+
+  // 切换主题
   const toggleTheme = () => {
     setDarkMode((prev) => {
       const newTheme = !prev;
       localStorage.setItem("theme", newTheme ? "dark" : "light");
-      document.documentElement.classList.toggle("dark", newTheme); // ✅ html
+      document.documentElement.classList.toggle("dark", newTheme);
       return newTheme;
     });
   };
 
   return (
-    <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-      <div className="flex justify-end mb-4">
-        <Button onClick={toggleTheme}>
-          {darkMode ? "切换到亮色模式" : "切换到暗黑模式"}
-        </Button>
-        <GitHubLogin />
-      </div>
-      <Header name="张三" title="前端开发工程师" />
+      <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
+        {/* 顶部工具栏 */}
+        <div className="flex justify-end gap-2 mb-4">
+          <Button onClick={toggleTheme}>
+            {darkMode ? "☀️ 亮色模式" : "🌙 暗黑模式"}
+          </Button>
+          <GitHubLogin />
+        </div>
 
-      <ScrollReveal>
-        <About about={about} />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Skills />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Projects projects={projects} />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Contact contact={contact} />
-      </ScrollReveal>
-      <ScrollReveal>
-        <Guestbook />
-      </ScrollReveal>
-      <BackToTop />
-    </div>
+        {/* 主要内容区域 */}
+        <Header name="张三" title="前端开发工程师" />
+
+        <ScrollReveal>
+          <About about={about} />
+        </ScrollReveal>
+
+        <ScrollReveal>
+          <Skills />
+        </ScrollReveal>
+
+        <ScrollReveal>
+          <Projects projects={projects} />
+        </ScrollReveal>
+
+        <ScrollReveal>
+          <Contact contact={contact} />
+        </ScrollReveal>
+
+        <ScrollReveal>
+          <Guestbook />
+        </ScrollReveal>
+
+        <BackToTop />
+      </div>
   );
 };
 

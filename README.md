@@ -5,13 +5,13 @@
 <div align="center">
   
   [![Vercel](https://img.shields.io/badge/在线预览-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://reactfolio-sooty.vercel.app/)
-  [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://https://github.com/Mydykitty/reactfolio)
-  
+  [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Mydykitty/reactfolio)
+
 </div>
 
 ## ✨ 在线体验
 
-👉 **[点击这里查看在线 Demo](https://vercel.com/mydykittys-projects/reactfolio)**
+👉 **[点击查看在线 Demo](https://reactfolio-sooty.vercel.app/)**
 
 ## 🎯 项目亮点
 

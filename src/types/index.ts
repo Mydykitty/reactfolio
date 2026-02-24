@@ -34,3 +34,18 @@ export interface AboutInfo {
   bio: string; // 简介文字
   avatar?: string; // 可选头像 URL
 }
+
+// 添加 Message 类型
+export interface Message {
+  id: number;
+  name: string;
+  content: string;
+  created_at: string;
+  avatar_url?: string;
+  user_id?: string;
+  likes_count?: number;
+}
+
+export interface MessageWithLike extends Message {
+  liked_by_user?: boolean;
+}

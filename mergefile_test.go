@@ -30,10 +30,10 @@ func TestMergeFile(t *testing.T) {
 			return nil
 		}
 
-		if strings.Contains(path, "node_modules") {
+		if strings.Contains(path, "node_modules") || strings.Contains(path, "dist") {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".tsx") && !strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".css") && !strings.HasSuffix(path, ".js") {
+		if !strings.HasSuffix(path, ".tsx") && !strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".css") && !strings.HasSuffix(path, ".js") && !strings.HasSuffix(path, ".md") {
 			return nil
 		}
 
