@@ -18,6 +18,13 @@ export const useLikeStore = create<LikeState>((set, get) => ({
     const user = useAuthStore.getState().user;
     if (!user) return;
 
+    // 新增：如果已经在加载中，直接返回
+    if (get().loading) return;
+
+    // 新增：如果已经有数据，不再重复请求
+    if (get().likedMessages.size > 0) return;
+
+
     try {
       set({ loading: true });
       const { data } = await supabase

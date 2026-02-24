@@ -94,15 +94,17 @@ const Guestbook = () => {
     }
   }, [page]); // 只依赖 page
 
-  // 修改4：点赞状态同步
   useEffect(() => {
-    setMessages(prev =>
-        prev.map(msg => ({
-          ...msg,
-          liked_by_user: likedMessages.has(msg.id),
-        }))
-    );
-  }, [likedMessages]); // 依赖 likedMessages
+    if (messages.length > 0 && likedMessages.size > 0) {
+      // 只同步 liked_by_user 状态，不影响 likes_count
+      setMessages(prev =>
+          prev.map(msg => ({
+            ...msg,
+            liked_by_user: likedMessages.has(msg.id),
+          }))
+      );
+    }
+  }, []); // 只在组件挂载时执行一次
 
   // 发布留言
   const submitMessage = async (e: React.FormEvent) => {
@@ -145,6 +147,26 @@ const Guestbook = () => {
 
   // 处理点赞
   const handleLike = async (messageId: number) => {
+    if (!user) {
+      alert("请先登录后再点赞");
+      return;
+    }
+
+    // 乐观更新 UI（这里已经正确更新了数字和 liked_by_user）
+    setMessages(prev =>
+        prev.map(msg => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              likes_count: (msg.likes_count || 0) + (msg.liked_by_user ? -1 : 1),
+              liked_by_user: !msg.liked_by_user,
+            };
+          }
+          return msg;
+        })
+    );
+
+    // 调用 store 的 toggleLike
     await toggleLike(messageId);
   };
 
