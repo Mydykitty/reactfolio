@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import type { Post } from "../types/blog";
 import BlogComments from "../components/blog/BlogComments";
+import ReadingProgress from "../components/blog/ReadingProgress";
 
 const PostPage: React.FC = () => {
   const { slug } = useParams();
@@ -36,49 +37,52 @@ const PostPage: React.FC = () => {
   if (!post) return <div className="text-center py-12">文章不存在</div>;
 
   return (
-    <article className="max-w-3xl mx-auto px-4 py-8">
-      {/* 返回链接 */}
-      <Link
-        to="/blog"
-        className="text-blue-500 hover:text-blue-600 mb-4 inline-block"
-      >
-        ← 返回博客列表
-      </Link>
+    <>
+      <ReadingProgress /> {/* 添加在顶部 */}
+      <article className="max-w-3xl mx-auto px-4 py-8">
+        {/* 返回链接 */}
+        <Link
+          to="/blog"
+          className="text-blue-500 hover:text-blue-600 mb-4 inline-block"
+        >
+          ← 返回博客列表
+        </Link>
 
-      {/* 标题 */}
-      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+        {/* 标题 */}
+        <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
 
-      {/* 元信息 */}
-      <div className="flex items-center gap-4 mb-8 text-gray-500 dark:text-gray-400">
-        <span>📅 {new Date(post.published_at).toLocaleDateString()}</span>
-        <span>👁️ {post.view_count} 阅读</span>
-        <span>❤️ {post.like_count} 点赞</span>
-      </div>
-
-      {/* 标签 */}
-      {post.tags && post.tags.length > 0 && (
-        <div className="flex gap-2 mb-8">
-          {post.tags.map((tag) => (
-            <span
-              key={tag}
-              className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
-            >
-              #{tag}
-            </span>
-          ))}
+        {/* 元信息 */}
+        <div className="flex items-center gap-4 mb-8 text-gray-500 dark:text-gray-400">
+          <span>📅 {new Date(post.published_at).toLocaleDateString()}</span>
+          <span>👁️ {post.view_count} 阅读</span>
+          <span>❤️ {post.like_count} 点赞</span>
         </div>
-      )}
 
-      {/* Markdown内容 - 这是最关键的部分 */}
-      <div className="prose dark:prose-invert max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {post.content}
-        </ReactMarkdown>
-      </div>
+        {/* 标签 */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex gap-2 mb-8">
+            {post.tags.map((tag) => (
+              <span
+                key={tag}
+                className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
 
-      {/* 2. 在这里添加评论组件（文章内容之后，article结束之前） */}
-      <BlogComments postId={post.id} />
-    </article>
+        {/* Markdown内容 - 这是最关键的部分 */}
+        <div className="prose dark:prose-invert max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {post.content}
+          </ReactMarkdown>
+        </div>
+
+        {/* 2. 在这里添加评论组件（文章内容之后，article结束之前） */}
+        <BlogComments postId={post.id} />
+      </article>
+    </>
   );
 };
 
