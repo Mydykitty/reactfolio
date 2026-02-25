@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useLikeStore } from "../store/likeStore";
-import type { Message, MessageWithLike } from "../types";
+import type { MessageWithLike } from "../types";
 import GuestbookMessage from "./GuestbookMessage";
 
 const PAGE_SIZE = 10;
