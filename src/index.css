@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";  /* 只需添加这一行 */
+
 @custom-variant dark (&:where(.dark, .dark *)); /* 手动启用 dark variant */
 
 /* 基础样式，让Tailwind处理主题切换 */

@@ -9,7 +9,5 @@ export default {
       },
     },
   },
-  plugins: [
-    require("@tailwindcss/typography"), // 添加这行
-  ],
+  plugins: [],
 };
