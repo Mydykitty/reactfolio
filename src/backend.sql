@@ -74,7 +74,14 @@ INSERT INTO posts (title, slug, content, excerpt, category_id, tags, is_publishe
 (
     '我的第一篇文章',
     'my-first-post',
-    '# Hello World\n\n这是测试内容',
+    '# Hello World
+
+这是测试内容
+
+- 列表项1
+- 列表项2
+
+**加粗文字**',
     '这是文章摘要',
     1,
     ARRAY['测试'],
