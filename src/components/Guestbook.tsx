@@ -232,8 +232,8 @@ const Guestbook = () => {
   const handleTogglePin = async (messageId: number) => {
     if (!user) return;
 
-    // 检查是否有管理员权限（这里简单用邮箱判断，你可以改成自己的条件）
-    const isAdmin = user.email === "mydykitty@126.com"; // 改成你的邮箱
+    // 检查是否有管理员权限
+    const isAdmin = user.email === "mydykitty@126.com"; // 改成你的管理员邮箱
 
     if (!isAdmin) {
       alert("只有管理员可以置顶留言");
@@ -241,16 +241,9 @@ const Guestbook = () => {
     }
 
     try {
-      // 找到当前消息的置顶状态
+      // 找到当前消息
       const targetMessage = messages.find((msg) => msg.id === messageId);
       if (!targetMessage) return;
-
-      // 乐观更新 UI
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId ? { ...msg, is_pinned: !msg.is_pinned } : msg,
-        ),
-      );
 
       // 更新数据库
       const { error } = await supabase
@@ -259,10 +252,29 @@ const Guestbook = () => {
         .eq("id", messageId);
 
       if (error) throw error;
+
+      // **关键修复：重新排序消息列表**
+      setMessages((prev) => {
+        // 先更新目标消息的 is_pinned 状态
+        const updatedMessages = prev.map((msg) =>
+          msg.id === messageId ? { ...msg, is_pinned: !msg.is_pinned } : msg,
+        );
+
+        // 然后重新排序：置顶的在前，按时间倒序
+        return updatedMessages.sort((a, b) => {
+          // 先按置顶状态排序
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          // 再按时间排序（新的在前）
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+      });
     } catch (error) {
       console.error("Error toggling pin:", error);
       alert("操作失败，请重试");
-      // 回滚 UI
+      // 出错时重新获取数据
       fetchMessages(1);
     }
   };
