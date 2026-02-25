@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import type { Post } from "../types/blog";
+import BlogComments from "../components/blog/BlogComments";
 
 const PostPage: React.FC = () => {
   const { slug } = useParams();
@@ -74,6 +75,9 @@ const PostPage: React.FC = () => {
           {post.content}
         </ReactMarkdown>
       </div>
+
+      {/* 2. 在这里添加评论组件（文章内容之后，article结束之前） */}
+      <BlogComments postId={post.id} />
     </article>
   );
 };
