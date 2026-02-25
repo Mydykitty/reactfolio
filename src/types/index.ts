@@ -44,6 +44,7 @@ export interface Message {
   avatar_url?: string;
   user_id?: string;
   likes_count?: number;
+  is_pinned?: boolean; 
 }
 
 export interface MessageWithLike extends Message {

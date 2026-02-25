@@ -36,6 +36,7 @@ const Guestbook = () => {
     const { data, error } = await supabase
       .from("messages")
       .select("*")
+      .order("is_pinned", { ascending: false }) // 置顶的排在前面
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -228,6 +229,44 @@ const Guestbook = () => {
     }
   };
 
+  const handleTogglePin = async (messageId: number) => {
+    if (!user) return;
+
+    // 检查是否有管理员权限（这里简单用邮箱判断，你可以改成自己的条件）
+    const isAdmin = user.email === "mydykitty@126.com"; // 改成你的邮箱
+
+    if (!isAdmin) {
+      alert("只有管理员可以置顶留言");
+      return;
+    }
+
+    try {
+      // 找到当前消息的置顶状态
+      const targetMessage = messages.find((msg) => msg.id === messageId);
+      if (!targetMessage) return;
+
+      // 乐观更新 UI
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, is_pinned: !msg.is_pinned } : msg,
+        ),
+      );
+
+      // 更新数据库
+      const { error } = await supabase
+        .from("messages")
+        .update({ is_pinned: !targetMessage.is_pinned })
+        .eq("id", messageId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error toggling pin:", error);
+      alert("操作失败，请重试");
+      // 回滚 UI
+      fetchMessages(1);
+    }
+  };
+
   return (
     <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
       <div className="flex justify-between items-center mb-6">
@@ -285,6 +324,7 @@ const Guestbook = () => {
             onLike={handleLike}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onTogglePin={handleTogglePin} // 新增这行
           />
         ))}
 

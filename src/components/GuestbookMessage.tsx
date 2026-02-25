@@ -9,6 +9,7 @@ interface GuestbookMessageProps {
   onLike: (id: number) => void;
   onEdit: (id: number, content: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onTogglePin: (id: number) => Promise<void>; // 新增
 }
 
 const GuestbookMessage = ({
@@ -17,6 +18,7 @@ const GuestbookMessage = ({
   onLike,
   onEdit,
   onDelete,
+  onTogglePin,
 }: GuestbookMessageProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -45,6 +47,8 @@ const GuestbookMessage = ({
     }
   };
 
+  const isAdmin = currentUser?.email === 'mydykitty@126.com'; // 改成你的管理员邮箱
+
   return (
     <div className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
       {/* 头像 */}
@@ -62,9 +66,16 @@ const GuestbookMessage = ({
         {/* 头部：用户名 + 时间 + 操作按钮 */}
         <div className="flex justify-between items-start gap-2">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-blue-600 dark:text-blue-400">
-              {message.name}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-blue-600 dark:text-blue-400">
+                {message.name}
+              </span>
+              {message.is_pinned && (
+                <span className="text-yellow-500" title="置顶留言">
+                  📌
+                </span>
+              )}
+            </div>
             {isOwnMessage && (
               <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
                 我
@@ -78,47 +89,49 @@ const GuestbookMessage = ({
             </span>
 
             {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
-            {isOwnMessage && !isEditing && (
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-gray-400 hover:text-blue-500 transition-colors p-1"
-                  title="编辑"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                  title="删除"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
+            {!isEditing && (
+                <div className="flex gap-1">
+                  {/* 置顶按钮 - 管理员可见（可以操作所有留言） */}
+                  {isAdmin && (
+                      <button
+                          onClick={() => onTogglePin(message.id)}
+                          className={`transition-colors p-1 ${
+                              message.is_pinned
+                                  ? 'text-yellow-500 hover:text-yellow-600'
+                                  : 'text-gray-400 hover:text-yellow-500'
+                          }`}
+                          title={message.is_pinned ? "取消置顶" : "置顶留言"}
+                      >
+                        📌
+                      </button>
+                  )}
+
+                  {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
+                  {isOwnMessage && (
+                      <>
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+                            title="编辑"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                            onClick={handleDelete}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                            title="删除"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                  )}
+                </div>
             )}
           </div>
         </div>
