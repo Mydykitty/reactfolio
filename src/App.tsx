@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom"; // 添加路由
 import Header from "./components/Header";
 import About from "./components/About";
 import Skills from "./components/Skills";
@@ -10,10 +11,13 @@ import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
 import GitHubLogin from "./components/GitHubLogin";
 import VisitorCounter from "./components/VisitorCounter";
+// 导入博客页面
+import BlogPage from "./pages/BlogPage";
+import PostPage from "./pages/PostPage";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
-import { useLikeStore } from "./store/likeStore"; // 新增：导入点赞 store
+import { useLikeStore } from "./store/likeStore";
 import { supabase } from "./lib/supabase";
 
 // 项目数据
@@ -53,7 +57,8 @@ const about: AboutInfo = {
   avatar: avatarImg,
 };
 
-const App: React.FC = () => {
+// 创建主页布局组件
+const MainLayout: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
   // 获取 store 方法
@@ -71,10 +76,8 @@ const App: React.FC = () => {
 
   // 初始化认证和点赞数据
   useEffect(() => {
-    // 初始化认证
     initialize();
 
-    // 设置认证状态监听
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -141,6 +144,19 @@ const App: React.FC = () => {
 
       <BackToTop />
     </div>
+  );
+};
+
+// 主应用组件
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainLayout />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<PostPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 

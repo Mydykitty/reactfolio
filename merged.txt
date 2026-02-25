@@ -60,6 +60,13 @@ npm install @supabase/supabase-js
 
 npm install zustand
 
+npm install react-markdown remark-gfm rehype-raw
+
+
+
+npm install recharts
+
+
 Settings/Developer settings/ReactFolio
 
 Homepage URL：
@@ -121,6 +128,7 @@ export default {
 
 ===== src/App.tsx =====
 import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom"; // 添加路由
 import Header from "./components/Header";
 import About from "./components/About";
 import Skills from "./components/Skills";
@@ -131,17 +139,22 @@ import ScrollReveal from "./components/ScrollReveal";
 import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
 import GitHubLogin from "./components/GitHubLogin";
+import VisitorCounter from "./components/VisitorCounter";
+// 导入博客页面
+import BlogPage from "./pages/BlogPage";
+import PostPage from "./pages/PostPage";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
-import { useLikeStore } from "./store/likeStore"; // 新增：导入点赞 store
+import { useLikeStore } from "./store/likeStore";
 import { supabase } from "./lib/supabase";
 
 // 项目数据
 const projects: Project[] = [
   {
     name: "个人简历网页",
-    description: "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
+    description:
+      "用React + TypeScript制作的个人简历网页，支持深色模式、响应式设计",
     link: "#",
     category: "react",
     tags: ["React", "TypeScript", "Tailwind"],
@@ -173,7 +186,8 @@ const about: AboutInfo = {
   avatar: avatarImg,
 };
 
-const App: React.FC = () => {
+// 创建主页布局组件
+const MainLayout: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
   // 获取 store 方法
@@ -191,10 +205,8 @@ const App: React.FC = () => {
 
   // 初始化认证和点赞数据
   useEffect(() => {
-    // 初始化认证
     initialize();
 
-    // 设置认证状态监听
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -224,44 +236,61 @@ const App: React.FC = () => {
   };
 
   return (
-      <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-        {/* 顶部工具栏 */}
-        <div className="flex justify-end gap-2 mb-4">
+    <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
+      {/* 顶部工具栏 */}
+      <div className="flex justify-between items-center mb-4">
+        <VisitorCounter />
+        <div className="flex gap-2">
           <Button onClick={toggleTheme}>
             {darkMode ? "☀️ 亮色模式" : "🌙 暗黑模式"}
           </Button>
           <GitHubLogin />
         </div>
-
-        {/* 主要内容区域 */}
-        <Header name="张三" title="前端开发工程师" />
-
-        <ScrollReveal>
-          <About about={about} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Skills />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Projects projects={projects} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Contact contact={contact} />
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <Guestbook />
-        </ScrollReveal>
-
-        <BackToTop />
       </div>
+
+      {/* 主要内容区域 */}
+      <Header name="张三" title="前端开发工程师" />
+
+      <ScrollReveal>
+        <About about={about} />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Skills />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Projects projects={projects} />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Contact contact={contact} />
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Guestbook />
+      </ScrollReveal>
+
+      <BackToTop />
+    </div>
+  );
+};
+
+// 主应用组件
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainLayout />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<PostPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
 export default App;
+
 
 ===== src/components/About.tsx =====
 import React from "react";
@@ -508,7 +537,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useLikeStore } from "../store/likeStore";
-import type { Message, MessageWithLike } from "../types";
+import type { MessageWithLike } from "../types";
+import GuestbookMessage from "./GuestbookMessage";
 
 const PAGE_SIZE = 10;
 
@@ -538,10 +568,11 @@ const Guestbook = () => {
     const to = from + PAGE_SIZE - 1;
 
     const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(from, to);
+      .from("messages")
+      .select("*")
+      .order("is_pinned", { ascending: false }) // 置顶的排在前面
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) {
       console.error("Error fetching messages:", error);
@@ -576,8 +607,8 @@ const Guestbook = () => {
     const init = async () => {
       // 获取总数
       const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true });
+        .from("messages")
+        .select("*", { count: "exact", head: true });
       setTotal(count || 0);
 
       // 如果已登录，获取点赞数据
@@ -594,20 +625,23 @@ const Guestbook = () => {
 
   // 修改3：分页加载
   useEffect(() => {
-    if (page > 1) { // 避免第一页重复加载
+    if (page > 1) {
+      // 避免第一页重复加载
       fetchMessages(page);
     }
   }, [page]); // 只依赖 page
 
-  // 修改4：点赞状态同步
+  // 只在组件挂载时同步一次点赞状态
   useEffect(() => {
-    setMessages(prev =>
-        prev.map(msg => ({
+    if (messages.length > 0 && likedMessages.size > 0) {
+      setMessages((prev) =>
+        prev.map((msg) => ({
           ...msg,
           liked_by_user: likedMessages.has(msg.id),
-        }))
-    );
-  }, [likedMessages]); // 依赖 likedMessages
+        })),
+      );
+    }
+  }, []); // 只在组件挂载时执行一次
 
   // 发布留言
   const submitMessage = async (e: React.FormEvent) => {
@@ -622,18 +656,18 @@ const Guestbook = () => {
 
     setLoading(true);
     const { error, data } = await supabase
-        .from("messages")
-        .insert([
-          {
-            name: user.user_metadata?.user_name || "匿名",
-            content,
-            user_id: user.id,
-            avatar_url: user.user_metadata?.avatar_url,
-            likes_count: 0,
-          },
-        ])
-        .select()
-        .single();
+      .from("messages")
+      .insert([
+        {
+          name: user.user_metadata?.user_name || "匿名",
+          content,
+          user_id: user.id,
+          avatar_url: user.user_metadata?.avatar_url,
+          likes_count: 0,
+        },
+      ])
+      .select()
+      .single();
 
     if (!error && data) {
       setContent("");
@@ -641,8 +675,8 @@ const Guestbook = () => {
       fetchMessages(1);
       // 更新总数
       const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true });
+        .from("messages")
+        .select("*", { count: "exact", head: true });
       setTotal(count || 0);
     }
     setLoading(false);
@@ -650,6 +684,26 @@ const Guestbook = () => {
 
   // 处理点赞
   const handleLike = async (messageId: number) => {
+    if (!user) {
+      alert("请先登录后再点赞");
+      return;
+    }
+
+    // 乐观更新 UI
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            likes_count: (msg.likes_count || 0) + (msg.liked_by_user ? -1 : 1),
+            liked_by_user: !msg.liked_by_user,
+          };
+        }
+        return msg;
+      }),
+    );
+
+    // 调用 store 的 toggleLike
     await toggleLike(messageId);
   };
 
@@ -660,147 +714,406 @@ const Guestbook = () => {
     }
   };
 
+  // 编辑留言
+  const handleEdit = async (messageId: number, newContent: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .update({ content: newContent })
+        .eq("id", messageId)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      // 更新本地状态
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, content: newContent } : msg,
+        ),
+      );
+    } catch (error) {
+      console.error("Error editing message:", error);
+      alert("编辑失败，请重试");
+    }
+  };
+
+  // 删除留言
+  const handleDelete = async (messageId: number) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .delete()
+        .eq("id", messageId)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      // 更新本地状态
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+
+      // 更新总数
+      setTotal((prev) => prev - 1);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      alert("删除失败，请重试");
+    }
+  };
+
+  const handleTogglePin = async (messageId: number) => {
+    if (!user) return;
+
+    // 检查是否有管理员权限
+    const isAdmin = user.email === "mydykitty@126.com"; // 改成你的管理员邮箱
+
+    if (!isAdmin) {
+      alert("只有管理员可以置顶留言");
+      return;
+    }
+
+    try {
+      // 找到当前消息
+      const targetMessage = messages.find((msg) => msg.id === messageId);
+      if (!targetMessage) return;
+
+      // 更新数据库
+      const { error } = await supabase
+        .from("messages")
+        .update({ is_pinned: !targetMessage.is_pinned })
+        .eq("id", messageId);
+
+      if (error) throw error;
+
+      // **关键修复：重新排序消息列表**
+      setMessages((prev) => {
+        // 先更新目标消息的 is_pinned 状态
+        const updatedMessages = prev.map((msg) =>
+          msg.id === messageId ? { ...msg, is_pinned: !msg.is_pinned } : msg,
+        );
+
+        // 然后重新排序：置顶的在前，按时间倒序
+        return updatedMessages.sort((a, b) => {
+          // 先按置顶状态排序
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          // 再按时间排序（新的在前）
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+      });
+    } catch (error) {
+      console.error("Error toggling pin:", error);
+      alert("操作失败，请重试");
+      // 出错时重新获取数据
+      fetchMessages(1);
+    }
+  };
+
   return (
-      <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            💬 访客留言板
-          </h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+    <section className="py-8 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md transition-colors duration-300">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          💬 访客留言板
+        </h2>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
           共 {total} 条留言
         </span>
-        </div>
+      </div>
 
-        {/* 留言表单 */}
-        {user ? (
-            <form onSubmit={submitMessage} className="mb-8">
-              <div className="flex gap-3">
-                <img
-                    src={user.user_metadata?.avatar_url}
-                    alt={user.user_metadata?.user_name}
-                    className="w-10 h-10 rounded-full flex-shrink-0"
-                />
-                <div className="flex-1">
+      {/* 留言表单 */}
+      {user ? (
+        <form onSubmit={submitMessage} className="mb-8">
+          <div className="flex gap-3">
+            <img
+              src={user.user_metadata?.avatar_url}
+              alt={user.user_metadata?.user_name}
+              className="w-10 h-10 rounded-full flex-shrink-0"
+            />
+            <div className="flex-1">
               <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="说点什么..."
-                  rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="说点什么..."
+                rows={2}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
               />
-                  <div className="flex justify-end mt-2">
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {loading ? "发布中..." : "发布留言"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </form>
-        ) : (
-            <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-center rounded-lg">
-              请先登录后再留言
-            </div>
-        )}
-
-        {/* 留言列表 */}
-        <div className="space-y-4">
-          {messages.map((msg) => (
-              <div
-                  key={msg.id}
-                  className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-              >
-                <img
-                    src={msg.avatar_url || `https://github.com/${msg.name}.png`}
-                    alt={msg.name}
-                    className="w-10 h-10 rounded-full flex-shrink-0"
-                    onError={(e) => {
-                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${msg.name}&background=random`;
-                    }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex items-center gap-2">
-                  <span className="font-medium text-blue-600 dark:text-blue-400">
-                    {msg.name}
-                  </span>
-                      {msg.user_id === user?.id && (
-                          <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
-                      我
-                    </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {new Date(msg.created_at).toLocaleString("zh-CN")}
-                </span>
-                  </div>
-                  <p className="mt-1 text-gray-700 dark:text-gray-300 break-words">
-                    {msg.content}
-                  </p>
-
-                  {/* 点赞按钮 */}
-                  <div className="mt-2 flex items-center gap-4">
-                    <button
-                        onClick={() => handleLike(msg.id)}
-                        disabled={!user}
-                        className={`flex items-center gap-1 text-sm transition-colors ${
-                            !user
-                                ? "opacity-50 cursor-not-allowed"
-                                : "hover:text-blue-500"
-                        } ${
-                            msg.liked_by_user
-                                ? "text-blue-500"
-                                : "text-gray-500 dark:text-gray-400"
-                        }`}
-                    >
-                      <svg
-                          className={`w-5 h-5 ${msg.liked_by_user ? "fill-current" : ""}`}
-                          fill={msg.liked_by_user ? "currentColor" : "none"}
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                      >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                        />
-                      </svg>
-                      <span>{msg.likes_count || 0}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-          ))}
-
-          {/* 加载更多 */}
-          {hasMore && (
-              <div className="text-center pt-4">
+              <div className="flex justify-end mt-2">
                 <button
-                    onClick={loadMore}
-                    disabled={loading}
-                    className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors duration-300 disabled:opacity-50"
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "加载中..." : "加载更多留言"}
+                  {loading ? "发布中..." : "发布留言"}
                 </button>
               </div>
-          )}
-
-          {messages.length === 0 && !loading && (
-              <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                还没有留言，来当第一个访客吧！ ✨
-              </p>
-          )}
+            </div>
+          </div>
+        </form>
+      ) : (
+        <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-center rounded-lg">
+          请先登录后再留言
         </div>
-      </section>
+      )}
+
+      {/* 留言列表 - 使用 GuestbookMessage 组件 */}
+      <div className="space-y-4">
+        {messages.map((msg) => (
+          <GuestbookMessage
+            key={msg.id}
+            message={msg}
+            currentUser={user}
+            onLike={handleLike}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onTogglePin={handleTogglePin} // 新增这行
+          />
+        ))}
+
+        {/* 加载更多 */}
+        {hasMore && (
+          <div className="text-center pt-4">
+            <button
+              onClick={loadMore}
+              disabled={loading}
+              className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors duration-300 disabled:opacity-50"
+            >
+              {loading ? "加载中..." : "加载更多留言"}
+            </button>
+          </div>
+        )}
+
+        {messages.length === 0 && !loading && (
+          <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+            还没有留言，来当第一个访客吧！ ✨
+          </p>
+        )}
+      </div>
+    </section>
   );
 };
 
 export default Guestbook;
+
+
+===== src/components/GuestbookMessage.tsx =====
+// src/components/GuestbookMessage.tsx
+import { useState } from "react";
+import type { MessageWithLike } from "../types";
+import type { User } from "@supabase/supabase-js";
+
+interface GuestbookMessageProps {
+  message: MessageWithLike;
+  currentUser: User | null;
+  onLike: (id: number) => void;
+  onEdit: (id: number, content: string) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  onTogglePin: (id: number) => Promise<void>; // 新增
+}
+
+const GuestbookMessage = ({
+  message,
+  currentUser,
+  onLike,
+  onEdit,
+  onDelete,
+  onTogglePin,
+}: GuestbookMessageProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isOwnMessage = currentUser?.id === message.user_id;
+
+  const handleEdit = async () => {
+    if (!editContent.trim() || editContent === message.content) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onEdit(message.id, editContent.trim());
+      setIsEditing(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("确定要删除这条留言吗？")) {
+      await onDelete(message.id);
+    }
+  };
+
+  const isAdmin = currentUser?.email === 'mydykitty@126.com'; // 改成你的管理员邮箱
+
+  return (
+    <div className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+      {/* 头像 */}
+      <img
+        src={message.avatar_url || `https://github.com/${message.name}.png`}
+        alt={message.name}
+        className="w-10 h-10 rounded-full flex-shrink-0"
+        onError={(e) => {
+          e.currentTarget.src = `https://ui-avatars.com/api/?name=${message.name}&background=random`;
+        }}
+      />
+
+      {/* 内容区域 */}
+      <div className="flex-1 min-w-0">
+        {/* 头部：用户名 + 时间 + 操作按钮 */}
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-blue-600 dark:text-blue-400">
+                {message.name}
+              </span>
+              {message.is_pinned && (
+                <span className="text-yellow-500" title="置顶留言">
+                  📌
+                </span>
+              )}
+            </div>
+            {isOwnMessage && (
+              <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+                我
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {new Date(message.created_at).toLocaleString("zh-CN")}
+            </span>
+
+            {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
+            {!isEditing && (
+                <div className="flex gap-1">
+                  {/* 置顶按钮 - 管理员可见（可以操作所有留言） */}
+                  {isAdmin && (
+                      <button
+                          onClick={() => onTogglePin(message.id)}
+                          className={`transition-colors p-1 ${
+                              message.is_pinned
+                                  ? 'text-yellow-500 hover:text-yellow-600'
+                                  : 'text-gray-400 hover:text-yellow-500'
+                          }`}
+                          title={message.is_pinned ? "取消置顶" : "置顶留言"}
+                      >
+                        📌
+                      </button>
+                  )}
+
+                  {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
+                  {isOwnMessage && (
+                      <>
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+                            title="编辑"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                            onClick={handleDelete}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                            title="删除"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                  )}
+                </div>
+            )}
+          </div>
+        </div>
+
+        {/* 内容区域：编辑模式或显示模式 */}
+        {isEditing ? (
+          <div className="mt-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              rows={3}
+              autoFocus
+              disabled={isSubmitting}
+            />
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditContent(message.content);
+                }}
+                className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded transition-colors"
+                disabled={isSubmitting}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleEdit}
+                disabled={isSubmitting || !editContent.trim()}
+                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? "保存中..." : "保存"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-1 text-gray-700 dark:text-gray-300 break-words whitespace-pre-wrap">
+            {message.content}
+          </p>
+        )}
+
+        {/* 点赞按钮 */}
+        <div className="mt-2 flex items-center gap-4">
+          <button
+            onClick={() => onLike(message.id)}
+            disabled={!currentUser}
+            className={`flex items-center gap-1 text-sm transition-colors ${
+              !currentUser
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:text-blue-500"
+            } ${
+              message.liked_by_user
+                ? "text-blue-500"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            <svg
+              className={`w-5 h-5 ${message.liked_by_user ? "fill-current" : ""}`}
+              fill={message.liked_by_user ? "currentColor" : "none"}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+            <span>{message.likes_count || 0}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GuestbookMessage;
+
 
 ===== src/components/Header.tsx =====
 import React from "react";
@@ -1077,6 +1390,154 @@ const Typewriter: React.FC<TypewriterProps> = ({
 export default Typewriter;
 
 
+===== src/components/VisitorCounter.tsx =====
+// src/components/VisitorCounter.tsx
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
+
+const VisitorCounter = () => {
+  const [count, setCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const handleVisitor = async () => {
+      try {
+        // 检查是否已经在本会话中访问过
+        const hasVisited = sessionStorage.getItem("hasVisited");
+
+        if (!hasVisited) {
+          // 新访客：先获取当前计数
+          const { data: currentData, error: selectError } = await supabase
+            .from("site_stats")
+            .select("visitor_count")
+            .eq("id", 1)
+            .single();
+
+          if (selectError) throw selectError;
+
+          // 更新计数 +1
+          const newCount = (currentData?.visitor_count || 0) + 1;
+          const { error: updateError } = await supabase
+            .from("site_stats")
+            .update({
+              visitor_count: newCount,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", 1);
+
+          if (updateError) throw updateError;
+
+          setCount(newCount);
+          sessionStorage.setItem("hasVisited", "true");
+        } else {
+          // 老访客：只获取当前计数
+          const { data, error } = await supabase
+            .from("site_stats")
+            .select("visitor_count")
+            .eq("id", 1)
+            .single();
+
+          if (error) throw error;
+          setCount(data.visitor_count);
+        }
+      } catch (error) {
+        console.error("Error updating visitor count:", error);
+        // 出错时显示默认值
+        setCount(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    handleVisitor();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="text-sm text-gray-400 dark:text-gray-500 animate-pulse">
+        ···
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+        />
+      </svg>
+      <span>{count}</span>
+    </div>
+  );
+};
+
+export default VisitorCounter;
+
+
+===== src/components/blog/BlogCard.tsx =====
+// 博客列表组件
+import React from "react";
+import { Link } from "react-router-dom";
+import type { Post } from "../../types/blog";
+
+interface BlogCardProps {
+  post: Post;
+}
+
+const BlogCard: React.FC<BlogCardProps> = ({ post }) => {
+  return (
+    <article className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+      {post.cover_image && (
+        <img
+          src={post.cover_image}
+          alt={post.title}
+          className="w-full h-48 object-cover"
+        />
+      )}
+      <div className="p-6">
+        <div className="flex gap-2 mb-2">
+          {post.tags?.map((tag) => (
+            <span
+              key={tag}
+              className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-1 rounded"
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+        <Link to={`/blog/${post.slug}`}>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 mb-2">
+            {post.title}
+          </h3>
+        </Link>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          {post.excerpt || post.content.substring(0, 150) + "..."}
+        </p>
+        <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+          <span>{new Date(post.published_at).toLocaleDateString("zh-CN")}</span>
+          <div className="flex gap-4">
+            <span>👁️ {post.view_count}</span>
+            <span>❤️ {post.like_count}</span>
+            <span>💬 {post.comment_count}</span>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+};
+
+export default BlogCard;
+
+
 ===== src/components/common/Button.tsx =====
 import type { FC, ButtonHTMLAttributes } from "react";
 
@@ -1195,6 +1656,213 @@ createRoot(document.getElementById("root")!).render(
 );
 
 
+===== src/pages/BlogPage.tsx =====
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import BlogCard from "../components/blog/BlogCard";
+import type { Post } from "../types/blog";
+
+const BlogPage: React.FC = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchPosts();
+    fetchCategories();
+  }, [selectedCategory]);
+
+  const fetchPosts = async () => {
+    setLoading(true);
+    let query = supabase
+      .from("posts")
+      .select(
+        `
+        *,
+        category:categories(*)
+      `,
+      )
+      .eq("is_published", true)
+      .order("published_at", { ascending: false });
+
+    if (selectedCategory) {
+      query = query.eq("category_id", selectedCategory);
+    }
+
+    const { data } = await query;
+    setPosts(data || []);
+    setLoading(false);
+  };
+
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .order("post_count", { ascending: false });
+    setCategories(data || []);
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="flex gap-8">
+        {/* 侧边栏 */}
+        <aside className="w-64 flex-shrink-0">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 sticky top-4">
+            <h3 className="font-bold mb-4">分类</h3>
+            <ul className="space-y-2">
+              <li>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    selectedCategory === null
+                      ? "bg-blue-500 text-white"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  全部文章
+                </button>
+              </li>
+              {categories.map((cat) => (
+                <li key={cat.id}>
+                  <button
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`w-full text-left px-3 py-2 rounded transition-colors flex justify-between ${
+                      selectedCategory === cat.id
+                        ? "bg-blue-500 text-white"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    <span className="text-sm">{cat.post_count}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+
+        {/* 文章列表 */}
+        <main className="flex-1">
+          <h1 className="text-3xl font-bold mb-8">博客文章</h1>
+
+          {loading ? (
+            <div className="text-center py-12">加载中...</div>
+          ) : posts.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">暂无文章</div>
+          ) : (
+            <div className="grid gap-6">
+              {posts.map((post) => (
+                <BlogCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default BlogPage;
+
+
+===== src/pages/PostPage.tsx =====
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { supabase } from "../lib/supabase";
+import type { Post } from "../types/blog";
+
+const PostPage: React.FC = () => {
+  const { slug } = useParams();
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPost();
+  }, [slug]);
+
+  const fetchPost = async () => {
+    // 获取文章详情
+    const { data, error } = await supabase
+      .from("posts")
+      .select(
+        `
+        *,
+        category:categories(*)
+      `,
+      )
+      .eq("slug", slug)
+      .single();
+
+    if (data) {
+      setPost(data);
+      // 增加浏览量
+      await supabase
+        .from("posts")
+        .update({ view_count: (data.view_count || 0) + 1 })
+        .eq("id", data.id);
+    }
+    setLoading(false);
+  };
+
+  if (loading) return <div className="text-center py-12">加载中...</div>;
+  if (!post) return <div className="text-center py-12">文章不存在</div>;
+
+  return (
+    <article className="max-w-3xl mx-auto px-4 py-8">
+      {/* 封面图 */}
+      {post.cover_image && (
+        <img
+          src={post.cover_image}
+          alt={post.title}
+          className="w-full h-96 object-cover rounded-lg mb-8"
+        />
+      )}
+
+      {/* 标题区域 */}
+      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+
+      <div className="flex items-center gap-4 mb-8 text-gray-500 dark:text-gray-400">
+        <span>📅 {new Date(post.published_at).toLocaleDateString()}</span>
+        <span>👁️ {post.view_count} 阅读</span>
+        <span>❤️ {post.like_count} 点赞</span>
+      </div>
+
+      {/* 标签 */}
+      <div className="flex gap-2 mb-8">
+        {post.tags?.map((tag) => (
+          <span
+            key={tag}
+            className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
+          >
+            #{tag}
+          </span>
+        ))}
+      </div>
+
+      {/* Markdown内容 */}
+      <div className="prose dark:prose-invert max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {post.content}
+        </ReactMarkdown>
+      </div>
+
+      {/* 点赞按钮 */}
+      <div className="mt-12 flex justify-center">
+        <button className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+          <span>❤️</span>
+          <span>点赞 {post.like_count}</span>
+        </button>
+      </div>
+    </article>
+  );
+};
+
+export default PostPage;
+
+
 ===== src/store/authStore.ts =====
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -1308,6 +1976,13 @@ export const useLikeStore = create<LikeState>((set, get) => ({
     const user = useAuthStore.getState().user;
     if (!user) return;
 
+    // 新增：如果已经在加载中，直接返回
+    if (get().loading) return;
+
+    // 新增：如果已经有数据，不再重复请求
+    if (get().likedMessages.size > 0) return;
+
+
     try {
       set({ loading: true });
       const { data } = await supabase
@@ -1392,6 +2067,48 @@ export const useLikeStore = create<LikeState>((set, get) => ({
   },
 }));
 
+===== src/types/blog.ts =====
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  post_count: number;
+}
+
+export interface Post {
+  id: number;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt?: string;
+  cover_image?: string;
+  category?: Category;
+  tags: string[];
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  published_at: string;
+  created_at: string;
+  author?: {
+    name: string;
+    avatar?: string;
+  };
+}
+
+export interface PostComment {
+  id: number;
+  post_id: number;
+  user_id: string;
+  content: string;
+  likes_count: number;
+  created_at: string;
+  user?: {
+    name: string;
+    avatar?: string;
+  };
+}
+
 ===== src/types/index.ts =====
 // 定义技能信息
 export interface Skill {
@@ -1439,6 +2156,7 @@ export interface Message {
   avatar_url?: string;
   user_id?: string;
   likes_count?: number;
+  is_pinned?: boolean; 
 }
 
 export interface MessageWithLike extends Message {

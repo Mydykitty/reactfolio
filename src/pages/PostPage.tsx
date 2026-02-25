@@ -1,0 +1,94 @@
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { supabase } from "../lib/supabase";
+import type { Post } from "../types/blog";
+
+const PostPage: React.FC = () => {
+  const { slug } = useParams();
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPost();
+  }, [slug]);
+
+  const fetchPost = async () => {
+    // 获取文章详情
+    const { data, error } = await supabase
+      .from("posts")
+      .select(
+        `
+        *,
+        category:categories(*)
+      `,
+      )
+      .eq("slug", slug)
+      .single();
+
+    if (data) {
+      setPost(data);
+      // 增加浏览量
+      await supabase
+        .from("posts")
+        .update({ view_count: (data.view_count || 0) + 1 })
+        .eq("id", data.id);
+    }
+    setLoading(false);
+  };
+
+  if (loading) return <div className="text-center py-12">加载中...</div>;
+  if (!post) return <div className="text-center py-12">文章不存在</div>;
+
+  return (
+    <article className="max-w-3xl mx-auto px-4 py-8">
+      {/* 封面图 */}
+      {post.cover_image && (
+        <img
+          src={post.cover_image}
+          alt={post.title}
+          className="w-full h-96 object-cover rounded-lg mb-8"
+        />
+      )}
+
+      {/* 标题区域 */}
+      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+
+      <div className="flex items-center gap-4 mb-8 text-gray-500 dark:text-gray-400">
+        <span>📅 {new Date(post.published_at).toLocaleDateString()}</span>
+        <span>👁️ {post.view_count} 阅读</span>
+        <span>❤️ {post.like_count} 点赞</span>
+      </div>
+
+      {/* 标签 */}
+      <div className="flex gap-2 mb-8">
+        {post.tags?.map((tag) => (
+          <span
+            key={tag}
+            className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
+          >
+            #{tag}
+          </span>
+        ))}
+      </div>
+
+      {/* Markdown内容 */}
+      <div className="prose dark:prose-invert max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {post.content}
+        </ReactMarkdown>
+      </div>
+
+      {/* 点赞按钮 */}
+      <div className="mt-12 flex justify-center">
+        <button className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+          <span>❤️</span>
+          <span>点赞 {post.like_count}</span>
+        </button>
+      </div>
+    </article>
+  );
+};
+
+export default PostPage;

@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class', // ✅ 确保是 class 模式
+  darkMode: "class", // ✅ 确保是 class 模式
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
@@ -9,5 +9,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require("@tailwindcss/typography"), // 添加这行
+  ],
 };

@@ -59,6 +59,14 @@ npm install @supabase/supabase-js
 
 npm install zustand
 
+npm install react-markdown remark-gfm rehype-raw
+
+npm install -D @tailwindcss/typography
+
+
+npm install recharts
+
+
 Settings/Developer settings/ReactFolio
 
 Homepage URL：
