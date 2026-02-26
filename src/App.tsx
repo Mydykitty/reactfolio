@@ -19,6 +19,8 @@ import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
 import { useLikeStore } from "./store/likeStore";
 import { supabase } from "./lib/supabase";
+import AdminLayout from "./components/admin/AdminLayout";
+import PostManager from "./pages/admin/PostManager";
 
 // 项目数据
 const projects: Project[] = [
@@ -155,6 +157,18 @@ const App: React.FC = () => {
         <Route path="/" element={<MainLayout />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<PostPage />} />
+
+        {/* 后台管理路由 - 必须放在 Routes 内部 */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<PostManager />} />
+          <Route path="posts" element={<PostManager />} />
+          <Route path="posts/new" element={<div>写文章页面（待实现）</div>} />
+          <Route
+            path="posts/edit/:id"
+            element={<div>编辑文章页面（待实现）</div>}
+          />
+          <Route path="categories" element={<div>分类管理（待实现）</div>} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

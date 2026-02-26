@@ -26,8 +26,11 @@ export interface Post {
   view_count: number;      // 浏览次数
   like_count: number;      // 点赞次数
   comment_count: number;   // 评论次数
+  is_published: boolean;   // 🔴 新增：是否已发布（草稿/发布状态）
   published_at: string;    // 实际发布时间（ISO格式时间字符串）
   created_at: string;      // 创建时间（ISO格式时间字符串）
+  updated_at?: string;     // 🔴 新增：最后更新时间（可选）
+  user_id?: string;        // 🔴 新增：作者ID（可选，用于关联）
   author?: {               // 作者信息（可选，关联auth.users表）
     name: string;          // 作者名称（从user_metadata中获取）
     avatar?: string;       // 作者头像URL（可选）
