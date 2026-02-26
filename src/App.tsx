@@ -23,6 +23,7 @@ import AdminLayout from "./components/admin/AdminLayout";
 import PostManager from "./pages/admin/PostManager";
 import PostEditor from "./components/admin/PostEditor";
 import CategoryManager from "./pages/admin/CategoryManager";
+import Dashboard from "./pages/admin/Dashboard";
 
 // 项目数据
 const projects: Project[] = [
@@ -162,7 +163,8 @@ const App: React.FC = () => {
 
         {/* 后台管理路由 - 必须放在 Routes 内部 */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<PostManager />} />
+          <Route index element={<Dashboard />} /> {/* 默认显示仪表盘 */}
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="posts" element={<PostManager />} />
           <Route path="posts/new" element={<PostEditor />} />
           <Route path="posts/edit/:id" element={<PostEditor />} />
