@@ -78,6 +78,7 @@ const PostEditor: React.FC = () => {
       .map((t) => t.trim())
       .filter((t) => t);
 
+    // 准备文章数据
     const postData = {
       title,
       slug,
@@ -91,21 +92,98 @@ const PostEditor: React.FC = () => {
       updated_at: new Date().toISOString(),
     };
 
-    let error;
-    if (id) {
-      // 更新文章
-      ({ error } = await supabase.from("posts").update(postData).eq("id", id));
-    } else {
-      // 新建文章
-      ({ error } = await supabase.from("posts").insert([postData]));
-    }
+    try {
+      let oldCategoryId = null;
 
-    if (!error) {
+      // 如果是编辑模式，先获取原来的分类ID
+      if (id) {
+        const { data: oldPost } = await supabase
+          .from("posts")
+          .select("category_id")
+          .eq("id", id)
+          .single();
+
+        oldCategoryId = oldPost?.category_id;
+      }
+
+      // 保存文章
+      let error;
+      if (id) {
+        // 编辑文章
+        ({ error } = await supabase
+          .from("posts")
+          .update(postData)
+          .eq("id", id));
+      } else {
+        // 新建文章
+        ({ error } = await supabase.from("posts").insert([postData]));
+      }
+
+      if (error) throw error;
+
+      // 🔴 更新分类的文章数量（写法三）
+      if (id) {
+        // 编辑模式：处理分类变化
+        if (oldCategoryId !== categoryId) {
+          // 旧分类减1
+          if (oldCategoryId) {
+            // 先查询当前值
+            const { data: oldCategory } = await supabase
+              .from("categories")
+              .select("post_count")
+              .eq("id", oldCategoryId)
+              .single();
+
+            if (oldCategory) {
+              await supabase
+                .from("categories")
+                .update({ post_count: Math.max(0, oldCategory.post_count - 1) })
+                .eq("id", oldCategoryId);
+            }
+          }
+
+          // 新分类加1
+          if (categoryId) {
+            // 先查询当前值
+            const { data: newCategory } = await supabase
+              .from("categories")
+              .select("post_count")
+              .eq("id", categoryId)
+              .single();
+
+            if (newCategory) {
+              await supabase
+                .from("categories")
+                .update({ post_count: newCategory.post_count + 1 })
+                .eq("id", categoryId);
+            }
+          }
+        }
+      } else {
+        // 新建模式：有分类的话直接加1
+        if (categoryId) {
+          // 先查询当前值
+          const { data: category } = await supabase
+            .from("categories")
+            .select("post_count")
+            .eq("id", categoryId)
+            .single();
+
+          if (category) {
+            await supabase
+              .from("categories")
+              .update({ post_count: category.post_count + 1 })
+              .eq("id", categoryId);
+          }
+        }
+      }
+
       navigate("/admin/posts");
-    } else {
-      alert("保存失败：" + error.message);
+    } catch (err: any) {
+      alert("保存失败：" + err.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) {

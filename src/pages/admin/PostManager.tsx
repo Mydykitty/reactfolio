@@ -24,10 +24,41 @@ const PostManager: React.FC = () => {
   const deletePost = async (id: number) => {
     if (!window.confirm("确定要删除这篇文章吗？")) return;
 
-    const { error } = await supabase.from("posts").delete().eq("id", id);
+    try {
+      // 1. 先获取文章的分类ID
+      const { data: post } = await supabase
+        .from("posts")
+        .select("category_id")
+        .eq("id", id)
+        .single();
 
-    if (!error) {
+      // 2. 删除文章
+      const { error } = await supabase.from("posts").delete().eq("id", id);
+
+      if (error) throw error;
+
+      // 3. 如果文章有分类，分类文章数减1
+      if (post?.category_id) {
+        // 先查询当前值
+        const { data: category } = await supabase
+          .from("categories")
+          .select("post_count")
+          .eq("id", post.category_id)
+          .single();
+
+        if (category) {
+          await supabase
+            .from("categories")
+            .update({ post_count: Math.max(0, category.post_count - 1) })
+            .eq("id", post.category_id);
+        }
+      }
+
+      // 4. 刷新列表
       fetchPosts();
+    } catch (err) {
+      console.error("删除失败:", err);
+      alert("删除失败");
     }
   };
 
