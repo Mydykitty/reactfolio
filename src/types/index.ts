@@ -45,8 +45,21 @@ export interface Message {
   user_id?: string;
   likes_count?: number;
   is_pinned?: boolean; 
+  reactions?: {  // 新增：留言的表情统计
+    [key: string]: number;  // 如 { '👍': 3, '❤️': 2 }
+  };
+  user_reactions?: string[]; // 新增：当前用户添加了哪些表情
 }
 
 export interface MessageWithLike extends Message {
   liked_by_user?: boolean;
+}
+
+// 添加表情反应类型
+export interface MessageReaction {
+  id: number;
+  message_id: number;
+  user_id: string;
+  reaction: string;
+  created_at: string;
 }
