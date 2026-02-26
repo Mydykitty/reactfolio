@@ -21,6 +21,7 @@ import { useLikeStore } from "./store/likeStore";
 import { supabase } from "./lib/supabase";
 import AdminLayout from "./components/admin/AdminLayout";
 import PostManager from "./pages/admin/PostManager";
+import PostEditor from "./components/admin/PostEditor";
 
 // 项目数据
 const projects: Project[] = [
@@ -162,11 +163,8 @@ const App: React.FC = () => {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<PostManager />} />
           <Route path="posts" element={<PostManager />} />
-          <Route path="posts/new" element={<div>写文章页面（待实现）</div>} />
-          <Route
-            path="posts/edit/:id"
-            element={<div>编辑文章页面（待实现）</div>}
-          />
+          <Route path="posts/new" element={<PostEditor />} />
+          <Route path="posts/edit/:id" element={<PostEditor />} />
           <Route path="categories" element={<div>分类管理（待实现）</div>} />
         </Route>
       </Routes>
