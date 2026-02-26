@@ -22,6 +22,7 @@ import { supabase } from "./lib/supabase";
 import AdminLayout from "./components/admin/AdminLayout";
 import PostManager from "./pages/admin/PostManager";
 import PostEditor from "./components/admin/PostEditor";
+import CategoryManager from "./pages/admin/CategoryManager";
 
 // 项目数据
 const projects: Project[] = [
@@ -165,7 +166,7 @@ const App: React.FC = () => {
           <Route path="posts" element={<PostManager />} />
           <Route path="posts/new" element={<PostEditor />} />
           <Route path="posts/edit/:id" element={<PostEditor />} />
-          <Route path="categories" element={<div>分类管理（待实现）</div>} />
+          <Route path="categories" element={<CategoryManager />} />
         </Route>
       </Routes>
     </BrowserRouter>
