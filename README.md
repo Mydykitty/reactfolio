@@ -63,6 +63,8 @@ npm install react-markdown remark-gfm rehype-raw
 
 npm install -D @tailwindcss/typography
 
+npm install react-syntax-highlighter
+npm install --save-dev @types/react-syntax-highlighter
 
 npm install recharts
 

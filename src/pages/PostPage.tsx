@@ -6,6 +6,8 @@ import { supabase } from "../lib/supabase";
 import type { Post } from "../types/blog";
 import BlogComments from "../components/blog/BlogComments";
 import ReadingProgress from "../components/blog/ReadingProgress";
+import CodeBlock from '../components/blog/CodeBlock';
+
 
 const PostPage: React.FC = () => {
   const { slug } = useParams();
@@ -38,7 +40,7 @@ const PostPage: React.FC = () => {
 
   return (
     <>
-      <ReadingProgress /> {/* 添加在顶部 */}
+      <ReadingProgress />
       <article className="max-w-3xl mx-auto px-4 py-8">
         {/* 返回链接 */}
         <Link
@@ -72,14 +74,19 @@ const PostPage: React.FC = () => {
           </div>
         )}
 
-        {/* Markdown内容 - 这是最关键的部分 */}
+        {/* Markdown内容 - 包含代码高亮 */}
         <div className="prose dark:prose-invert max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code: CodeBlock,
+            }}
+          >
             {post.content}
           </ReactMarkdown>
         </div>
 
-        {/* 2. 在这里添加评论组件（文章内容之后，article结束之前） */}
+        {/* 评论组件 */}
         <BlogComments postId={post.id} />
       </article>
     </>
