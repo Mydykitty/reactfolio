@@ -12,6 +12,9 @@ const BlogPage: React.FC = () => {
 
   // 🔴 新增：搜索相关状态
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   useEffect(() => {
     fetchPosts();
@@ -58,13 +61,29 @@ const BlogPage: React.FC = () => {
 
   // 🔴 防抖搜索
   const handleSearch = (value: string) => {
-    setSearchQuery(value);
+    setSearchQuery(value); // 输入框实时更新
 
-    // 显示搜索中的提示
-    if (value.trim()) {
-      setLoading(true);
+    // 清除之前的定时器
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
+
+    // 设置新的定时器（500ms后搜索）
+    const timeout = setTimeout(() => {
+      fetchPosts(); // 真正执行搜索
+    }, 500);
+
+    setSearchTimeout(timeout);
   };
+
+  // 组件卸载时清除定时器
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
