@@ -63,10 +63,32 @@ const CategoryManager: React.FC = () => {
     fetchCategories();
   };
 
+  // 删除分类
   const deleteCategory = async (id: number) => {
+    // 找到要删除的分类
+    const category = categories.find((c) => c.id === id);
+
+    // 检查是否有文章
+    if (category && category.post_count > 0) {
+      alert(
+        `无法删除：该分类下还有 ${category.post_count} 篇文章，请先移动或删除这些文章`,
+      );
+      return;
+    }
+
     if (!window.confirm("确定要删除这个分类吗？")) return;
-    await supabase.from("categories").delete().eq("id", id);
-    fetchCategories();
+
+    try {
+      const { error } = await supabase.from("categories").delete().eq("id", id);
+
+      if (error) throw error;
+
+      // 刷新列表
+      fetchCategories();
+    } catch (err) {
+      console.error("删除失败:", err);
+      alert("删除失败");
+    }
   };
 
   return (
