@@ -32,22 +32,30 @@ const parseUTMParams = (url: string): Partial<VisitData> => {
 const getReferer = (): string | undefined => {
   return document.referrer || undefined;
 };
-// 记录上一次访问的路径，防止重复记录
-let lastLoggedPath = '';
-let lastLoggedTime = 0;
+
+
+// 获取来源页面（测试代码）
+/*
+const getReferer = (): string | undefined => {
+  // return document.referrer || undefined;
+
+  // 测试用：根据 URL 参数动态返回
+  const url = new URL(window.location.href);
+  const testSource = url.searchParams.get('test_source');
+
+  if (testSource === 'google') return 'https://www.google.com';
+  if (testSource === 'facebook') return 'https://www.facebook.com';
+  if (testSource === 'github') return 'https://github.com';
+
+  return undefined;
+};
+*/
+
 
 // 记录访问
 export const logVisit = async () => {
   try {
     const currentPath = window.location.pathname + window.location.search;
-    const currentTime = Date.now();
-
-    // 5秒内相同路径不重复记录
-    if (lastLoggedPath === currentPath && currentTime - lastLoggedTime < 5000) {
-      console.log('忽略重复记录:', currentPath);
-      return;
-    }
-
     const referer = getReferer();
     const utmParams = parseUTMParams(window.location.href);
 
@@ -57,19 +65,12 @@ export const logVisit = async () => {
       ...utmParams
     };
 
-    console.log('记录访问:', visitData); // 添加日志方便调试
-
     // 异步记录，不阻塞页面加载
     supabase
         .from('visit_logs')
         .insert([visitData])
         .then(({ error }) => {
           if (error) console.error('记录访问失败:', error);
-          else {
-            // 更新最后记录
-            lastLoggedPath = currentPath;
-            lastLoggedTime = currentTime;
-          }
         });
   } catch (error) {
     console.error('记录访问出错:', error);

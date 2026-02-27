@@ -242,7 +242,7 @@ const SourceAnalysis: React.FC = () => {
                 <h2 className="text-xl font-bold mb-4">热门页面 TOP 10</h2>
                 <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={pageData} layout="vertical">
+                    <BarChart data={pageData} layout="vertical" margin={{ left: 200 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />
                       <YAxis type="category" dataKey="name" width={150} />
