@@ -7,7 +7,7 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
 
   // 检查是否管理员（可以根据邮箱判断）
-  const isAdmin = user?.email === "mydykitty@126.com"; // 改成你的邮箱
+  const isAdmin = user?.email === "mydykitty@126.com";
 
   if (!user) {
     navigate("/");
@@ -46,6 +46,12 @@ const AdminLayout: React.FC = () => {
               </Link>
               <div className="flex space-x-4 ml-6">
                 <Link
+                  to="/admin/dashboard"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  仪表盘
+                </Link>
+                <Link
                   to="/admin/posts"
                   className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
                 >
@@ -57,8 +63,9 @@ const AdminLayout: React.FC = () => {
                 >
                   分类管理
                 </Link>
+                {/* 🔴 新增：个人资料链接 */}
                 <Link
-                  to="/admin/profile"
+                  to="/profile"
                   className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
                 >
                   个人资料

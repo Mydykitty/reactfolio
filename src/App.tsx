@@ -24,6 +24,7 @@ import PostManager from "./pages/admin/PostManager";
 import PostEditor from "./components/admin/PostEditor";
 import CategoryManager from "./pages/admin/CategoryManager";
 import Dashboard from "./pages/admin/Dashboard";
+import ProfilePage from "./pages/ProfilePage";
 
 // 项目数据
 const projects: Project[] = [
@@ -160,6 +161,7 @@ const App: React.FC = () => {
         <Route path="/" element={<MainLayout />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<PostPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
 
         {/* 后台管理路由 - 必须放在 Routes 内部 */}
         <Route path="/admin" element={<AdminLayout />}>

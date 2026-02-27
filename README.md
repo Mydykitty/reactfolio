@@ -68,6 +68,11 @@ npm install --save-dev @types/react-syntax-highlighter
 
 npm install recharts
 
+# 头像上传和编辑组件
+npm install react-avatar-editor
+
+# 如果需要图片压缩
+npm install browser-image-compression
 
 Settings/Developer settings/ReactFolio
 

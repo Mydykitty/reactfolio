@@ -12,9 +12,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
+    "browser-image-compression": "^2.0.2",
     "framer-motion": "^12.34.0",
     "postcss-loader": "^8.2.0",
     "react": "^19.2.0",
+    "react-avatar-editor": "^14.0.0",
     "react-dom": "^19.2.0",
     "react-intersection-observer": "^10.0.2",
     "react-markdown": "^10.1.0",
