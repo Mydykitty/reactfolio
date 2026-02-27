@@ -6,7 +6,6 @@ const AdminLayout: React.FC = () => {
   const { user, signOut } = useAuthStore();
   const navigate = useNavigate();
 
-  // 检查是否管理员（可以根据邮箱判断）
   const isAdmin = user?.email === "mydykitty@126.com";
 
   if (!user) {
@@ -33,7 +32,6 @@ const AdminLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      {/* 顶部导航 */}
       <nav className="bg-white dark:bg-gray-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between h-16">
@@ -63,7 +61,13 @@ const AdminLayout: React.FC = () => {
                 >
                   分类管理
                 </Link>
-                {/* 🔴 新增：个人资料链接 */}
+                {/* 🔴 新增：来源分析 */}
+                <Link
+                  to="/admin/sources"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  来源分析
+                </Link>
                 <Link
                   to="/profile"
                   className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
@@ -90,7 +94,6 @@ const AdminLayout: React.FC = () => {
         </div>
       </nav>
 
-      {/* 主要内容区域 */}
       <main className="py-8">
         <Outlet />
       </main>

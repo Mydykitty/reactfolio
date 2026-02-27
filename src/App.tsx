@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"; // 添加 useLocation
 import Header from "./components/Header";
 import About from "./components/About";
 import Skills from "./components/Skills";
@@ -11,14 +11,15 @@ import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
 import GitHubLogin from "./components/GitHubLogin";
 import VisitorCounter from "./components/VisitorCounter";
-import LoadingSpinner from "./components/common/LoadingSpinner"; // 导入加载组件
+import LoadingSpinner from "./components/common/LoadingSpinner";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
 import { useLikeStore } from "./store/likeStore";
 import { supabase } from "./lib/supabase";
+import { logVisit } from "./utils/visitLogger"; // 导入访问记录工具
 
-// 🔴 懒加载所有页面组件
+// 懒加载所有页面组件
 const BlogPage = lazy(() => import("./pages/BlogPage"));
 const PostPage = lazy(() => import("./pages/PostPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
@@ -27,6 +28,7 @@ const PostManager = lazy(() => import("./pages/admin/PostManager"));
 const PostEditor = lazy(() => import("./components/admin/PostEditor"));
 const CategoryManager = lazy(() => import("./pages/admin/CategoryManager"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const SourceAnalysis = lazy(() => import("./pages/admin/SourceAnalysis")); // 新增
 
 // 项目数据
 const projects: Project[] = [
@@ -65,11 +67,22 @@ const about: AboutInfo = {
   avatar: avatarImg,
 };
 
+// 路由监听组件
+const RouteListener: React.FC = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    // 每次路由变化时记录访问
+    logVisit();
+  }, [location]);
+
+  return null;
+};
+
 // 创建主页布局组件
 const MainLayout: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
-  // 获取 store 方法
   const initialize = useAuthStore((state) => state.initialize);
   const user = useAuthStore((state) => state.user);
   const fetchUserLikes = useLikeStore((state) => state.fetchUserLikes);
@@ -116,7 +129,6 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-      {/* 顶部工具栏 */}
       <div className="flex justify-between items-center mb-4">
         <VisitorCounter />
         <div className="flex gap-2">
@@ -127,7 +139,6 @@ const MainLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* 主要内容区域 */}
       <Header name="张三" title="前端开发工程师" />
 
       <ScrollReveal>
@@ -159,7 +170,9 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      {/* 🔴 用 Suspense 包裹所有路由，显示加载动画 */}
+      {/* 路由监听组件 */}
+      <RouteListener />
+
       <Suspense fallback={<LoadingSpinner fullScreen text="页面加载中..." />}>
         <Routes>
           <Route path="/" element={<MainLayout />} />
@@ -175,6 +188,8 @@ const App: React.FC = () => {
             <Route path="posts/new" element={<PostEditor />} />
             <Route path="posts/edit/:id" element={<PostEditor />} />
             <Route path="categories" element={<CategoryManager />} />
+            <Route path="sources" element={<SourceAnalysis />} />{" "}
+            {/* 新增来源分析路由 */}
           </Route>
         </Routes>
       </Suspense>
