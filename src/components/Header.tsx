@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom"; // 添加 Link 导入
 import { useAuthStore } from "../store/authStore"; // 导入 auth store
 import Typewriter from "./Typewriter";
-
+import LazyImage from "./common/LazyImage"; // 导入 LazyImage 组件
 interface HeaderProps {
   name: string;
   title: string;
@@ -29,13 +29,12 @@ const Header: React.FC<HeaderProps> = ({ name, title }) => {
             to="/profile"
             className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-3 py-1 text-sm"
           >
-            <img
+            <LazyImage
               src={user.user_metadata?.avatar_url}
               alt={user.user_metadata?.user_name}
               className="w-6 h-6 rounded-full"
-              onError={(e) => {
-                e.currentTarget.src = `https://ui-avatars.com/api/?name=${user.user_metadata?.user_name}&background=random`;
-              }}
+              width={24}
+              height={24}
             />
             <span>个人资料</span>
           </Link>

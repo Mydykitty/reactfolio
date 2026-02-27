@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import type { Post } from "../../types/blog";
+import LazyImage from "../common/LazyImage";
 
 interface BlogCardProps {
   post: Post;
@@ -41,10 +42,12 @@ const BlogCard: React.FC<BlogCardProps> = ({ post, searchQuery = "" }) => {
   return (
     <article className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       {post.cover_image && (
-        <img
+        <LazyImage
           src={post.cover_image}
           alt={post.title}
           className="w-full h-48 object-cover"
+          width={400}
+          height={192}
         />
       )}
       <div className="p-6">
