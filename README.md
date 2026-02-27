@@ -76,6 +76,13 @@ npm install browser-image-compression
 
 npm install --save-dev @types/react
 
+npm install react-wordcloud
+
+npm install d3 d3-cloud
+
+npm install --save-dev @types/d3 @types/d3-cloud
+
+
 Settings/Developer settings/ReactFolio
 
 Homepage URL：

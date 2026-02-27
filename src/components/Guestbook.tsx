@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/authStore";
 import { useLikeStore } from "../store/likeStore";
 import type { MessageWithLike } from "../types";
 import GuestbookMessage from "./GuestbookMessage";
+import GuestbookWordCloud from "./GuestbookWordCloud"; // 导入词云组件
 
 const PAGE_SIZE = 10;
 
@@ -15,6 +16,7 @@ const Guestbook = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
+  const [showWordCloud, setShowWordCloud] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const { likedMessages, fetchUserLikes, toggleLike } = useLikeStore();
@@ -325,6 +327,19 @@ const Guestbook = () => {
           请先登录后再留言
         </div>
       )}
+
+      {/* 🔴 在这里添加词云开关和组件 */}
+      <div className="mb-8">
+        <button
+          onClick={() => setShowWordCloud(!showWordCloud)}
+          className="text-blue-500 hover:text-blue-600 mb-4 inline-flex items-center gap-2"
+        >
+          <span>{showWordCloud ? "📖" : "☁️"}</span>
+          <span>{showWordCloud ? "隐藏词云" : "显示词云"}</span>
+        </button>
+
+        {showWordCloud && <GuestbookWordCloud />}
+      </div>
 
       {/* 留言列表 - 使用 GuestbookMessage 组件 */}
       <div className="space-y-4">
