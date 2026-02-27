@@ -74,6 +74,8 @@ npm install react-avatar-editor
 # 如果需要图片压缩
 npm install browser-image-compression
 
+npm install --save-dev @types/react
+
 Settings/Developer settings/ReactFolio
 
 Homepage URL：
