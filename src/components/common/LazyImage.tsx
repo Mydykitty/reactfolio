@@ -4,41 +4,54 @@ interface LazyImageProps {
   src: string;
   alt: string;
   className?: string;
-  placeholder?: string; // 占位图
-  webp?: boolean; // 是否支持WebP
+  placeholder?: string;
+  webp?: boolean;
   width?: number;
   height?: number;
+  mobile?: string; // 移动端图片
+  tablet?: string; // 平板端图片
+  desktop?: string; // 桌面端图片
 }
 
 const LazyImage: React.FC<LazyImageProps> = ({
   src,
   alt,
   className = "",
-  placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%23f0f0f0"/%3E%3Ctext x="50" y="50" font-size="14" text-anchor="middle" dy=".3em" fill="%23999"%3E加载中%3C/text%3E%3C/svg%3E',
+  placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%23f0f0f0"/%3E%3C/svg%3E',
   webp = true,
   width,
   height,
+  mobile,
+  tablet,
+  desktop,
 }) => {
   const [imageSrc, setImageSrc] = useState(placeholder);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  // 根据屏幕宽度选择图片
+  const getResponsiveImage = () => {
+    if (typeof window === "undefined") return src;
+
+    const width = window.innerWidth;
+    if (mobile && width < 640) return mobile;
+    if (tablet && width >= 640 && width < 1024) return tablet;
+    if (desktop && width >= 1024) return desktop;
+    return src;
+  };
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            // 进入视口时加载真实图片
             loadImage();
-            observer.disconnect(); // 加载后停止观察
+            observer.disconnect();
           }
         });
       },
-      {
-        rootMargin: "50px", // 提前50px加载
-        threshold: 0.01,
-      },
+      { rootMargin: "50px", threshold: 0.01 },
     );
 
     if (imgRef.current) {
@@ -51,13 +64,15 @@ const LazyImage: React.FC<LazyImageProps> = ({
   const loadImage = () => {
     const img = new Image();
 
+    // 获取响应式图片
+    const responsiveSrc = getResponsiveImage();
+
     // 检查是否支持WebP
     const useWebP = webp && checkWebPSupport();
 
-    // 构建图片URL（可以根据需要添加WebP版本）
-    let imageUrl = src;
-    if (useWebP && src.match(/\.(jpg|jpeg|png)$/)) {
-      imageUrl = src.replace(/\.(jpg|jpeg|png)$/, ".webp");
+    let imageUrl = responsiveSrc;
+    if (useWebP && responsiveSrc.match(/\.(jpg|jpeg|png)$/)) {
+      imageUrl = responsiveSrc.replace(/\.(jpg|jpeg|png)$/, ".webp");
     }
 
     img.src = imageUrl;
@@ -66,9 +81,8 @@ const LazyImage: React.FC<LazyImageProps> = ({
       setIsLoaded(true);
     };
     img.onerror = () => {
-      // WebP加载失败，回退到原图
       if (useWebP) {
-        loadOriginalImage();
+        loadOriginalImage(responsiveSrc);
       } else {
         setError(true);
         setImageSrc(placeholder);
@@ -76,11 +90,11 @@ const LazyImage: React.FC<LazyImageProps> = ({
     };
   };
 
-  const loadOriginalImage = () => {
+  const loadOriginalImage = (originalSrc: string) => {
     const img = new Image();
-    img.src = src;
+    img.src = originalSrc;
     img.onload = () => {
-      setImageSrc(src);
+      setImageSrc(originalSrc);
       setIsLoaded(true);
     };
     img.onerror = () => {
@@ -89,7 +103,6 @@ const LazyImage: React.FC<LazyImageProps> = ({
     };
   };
 
-  // 检查浏览器是否支持WebP
   const checkWebPSupport = () => {
     const canvas = document.createElement("canvas");
     canvas.width = 1;
@@ -99,12 +112,10 @@ const LazyImage: React.FC<LazyImageProps> = ({
 
   return (
     <div className="relative overflow-hidden" style={{ width, height }}>
-      {/* 占位图/模糊效果 */}
       {!isLoaded && (
         <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
       )}
 
-      {/* 图片 */}
       <img
         ref={imgRef}
         src={imageSrc}
@@ -116,10 +127,9 @@ const LazyImage: React.FC<LazyImageProps> = ({
           ${error ? "opacity-50" : ""}
         `}
         style={{ width, height }}
-        loading="lazy" // 原生懒加载作为后备
+        loading="lazy"
       />
 
-      {/* 加载错误提示 */}
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-500 text-sm">
           图片加载失败
