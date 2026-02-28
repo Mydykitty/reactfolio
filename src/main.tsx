@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { registerSW } from "virtual:pwa-register";
+import "./i18n/config";
 
 // 只在生产环境注册 PWA
 if (import.meta.env.PROD) {
