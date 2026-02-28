@@ -2,15 +2,12 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 const LanguageSwitcher: React.FC = () => {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
 
   const languages = [
     { code: "zh", name: "中文", flag: "🇨🇳" },
     { code: "en", name: "English", flag: "🇬🇧" },
   ];
-
-  const currentLanguage =
-    languages.find((lang) => lang.code === i18n.language) || languages[0];
 
   return (
     <div className="relative">

@@ -49,7 +49,7 @@ const GuestbookWordCloud: React.FC = () => {
         const words = msg.content.split(
           /[\s，,。.！!？?；;：:、/\\（）()【】\[\]{}]+/,
         );
-        words.forEach((word) => {
+        words.forEach((word: string) => {
           const trimmed = word.trim();
           if (trimmed.length > 1) {
             // 只统计长度大于1的词
@@ -101,7 +101,7 @@ const GuestbookWordCloud: React.FC = () => {
       .padding(3) // 词与词之间的间距
       .rotate(() => (Math.random() > 0.5 ? 0 : 30)) // 随机旋转0或30度
       .font("sans-serif")
-      .fontSize((d) => d.size)
+      .fontSize((d) => d.size!)
       .on("end", draw);
 
     layout.start();
@@ -126,7 +126,7 @@ const GuestbookWordCloud: React.FC = () => {
         .style("font-size", (d) => `${d.size}px`)
         .style("font-family", "sans-serif")
         .style("font-weight", "bold")
-        .style("fill", (d, i) => {
+        .style("fill", (_d, i) => {
           // 使用 D3 的颜色方案
           const colors = [
             "#3b82f6",
@@ -147,7 +147,7 @@ const GuestbookWordCloud: React.FC = () => {
           "transform",
           (d) => `translate(${d.x},${d.y}) rotate(${d.rotate})`,
         )
-        .text((d) => d.text)
+        .text((d) => d.text!)
         .on("mouseover", function () {
           d3.select(this)
             .style("opacity", 1)
@@ -158,7 +158,7 @@ const GuestbookWordCloud: React.FC = () => {
             .style("opacity", 0.8)
             .style("font-size", (d) => `${(d as any).size}px`);
         })
-        .on("click", (event, d) => {
+        .on("click", (_event, d) => {
           console.log("点击词:", d.text);
           // 可以添加点击搜索功能
           alert(`你点击了: ${d.text}`);
@@ -252,7 +252,7 @@ const GuestbookWordCloud: React.FC = () => {
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-3">热门词 TOP 10</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            {words.slice(0, 10).map((word, index) => (
+            {words.slice(0, 10).map((word) => (
               <div
                 key={word.text}
                 className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"

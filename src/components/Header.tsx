@@ -11,7 +11,7 @@ interface HeaderProps {
   title: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ name, title }) => {
+const Header: React.FC<HeaderProps> = ({}) => {
   const { user } = useAuthStore();
   const { t } = useTranslation();
 

@@ -62,9 +62,28 @@ npm install zustand
 
 npm install react-markdown remark-gfm rehype-raw
 
+npm install -D @tailwindcss/typography
 
+npm install react-syntax-highlighter
+npm install --save-dev @types/react-syntax-highlighter
 
 npm install recharts
+
+# 头像上传和编辑组件
+npm install react-avatar-editor
+
+# 如果需要图片压缩
+npm install browser-image-compression
+
+npm install --save-dev @types/react
+
+npm install react-wordcloud
+
+npm install d3 d3-cloud
+
+npm install --save-dev @types/d3 @types/d3-cloud
+
+npm install i18next react-i18next i18next-browser-languagedetector
 
 
 Settings/Developer settings/ReactFolio
@@ -127,8 +146,8 @@ export default {
 
 
 ===== src/App.tsx =====
-import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom"; // 添加路由
+import React, { useState, useEffect, lazy, Suspense, useRef} from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"; // 添加 useLocation
 import Header from "./components/Header";
 import About from "./components/About";
 import Skills from "./components/Skills";
@@ -140,14 +159,24 @@ import Guestbook from "./components/Guestbook";
 import Button from "./components/common/Button";
 import GitHubLogin from "./components/GitHubLogin";
 import VisitorCounter from "./components/VisitorCounter";
-// 导入博客页面
-import BlogPage from "./pages/BlogPage";
-import PostPage from "./pages/PostPage";
+import LoadingSpinner from "./components/common/LoadingSpinner";
 import type { Project, ContactInfo, AboutInfo } from "./types";
 import avatarImg from "./assets/avatar.png";
 import { useAuthStore } from "./store/authStore";
 import { useLikeStore } from "./store/likeStore";
 import { supabase } from "./lib/supabase";
+import { logVisit } from "./utils/visitLogger"; // 导入访问记录工具
+
+// 懒加载所有页面组件
+const BlogPage = lazy(() => import("./pages/BlogPage"));
+const PostPage = lazy(() => import("./pages/PostPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
+const PostManager = lazy(() => import("./pages/admin/PostManager"));
+const PostEditor = lazy(() => import("./components/admin/PostEditor"));
+const CategoryManager = lazy(() => import("./pages/admin/CategoryManager"));
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const SourceAnalysis = lazy(() => import("./pages/admin/SourceAnalysis")); // 新增
 
 // 项目数据
 const projects: Project[] = [
@@ -186,11 +215,32 @@ const about: AboutInfo = {
   avatar: avatarImg,
 };
 
+// 路由监听组件
+const RouteListener: React.FC = () => {
+  const location = useLocation();
+  const lastLoggedRef = useRef({ path: "", time: 0 });
+
+  useEffect(() => {
+    const currentPath = location.pathname + location.search;
+    const now = Date.now();
+
+    // 5秒内相同路径不重复记录
+    if (
+      lastLoggedRef.current.path !== currentPath ||
+      now - lastLoggedRef.current.time > 5000
+    ) {
+      lastLoggedRef.current = { path: currentPath, time: now };
+      logVisit();
+    }
+  }, [location]);
+
+  return null;
+};
+
 // 创建主页布局组件
 const MainLayout: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
 
-  // 获取 store 方法
   const initialize = useAuthStore((state) => state.initialize);
   const user = useAuthStore((state) => state.user);
   const fetchUserLikes = useLikeStore((state) => state.fetchUserLikes);
@@ -237,7 +287,6 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="app max-w-3xl mx-auto p-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-      {/* 顶部工具栏 */}
       <div className="flex justify-between items-center mb-4">
         <VisitorCounter />
         <div className="flex gap-2">
@@ -248,7 +297,6 @@ const MainLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* 主要内容区域 */}
       <Header name="张三" title="前端开发工程师" />
 
       <ScrollReveal>
@@ -280,11 +328,29 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<MainLayout />} />
-        <Route path="/blog" element={<BlogPage />} />
-        <Route path="/blog/:slug" element={<PostPage />} />
-      </Routes>
+      {/* 路由监听组件 */}
+      <RouteListener />
+
+      <Suspense fallback={<LoadingSpinner fullScreen text="页面加载中..." />}>
+        <Routes>
+          <Route path="/" element={<MainLayout />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<PostPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+
+          {/* 后台管理路由 */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="posts" element={<PostManager />} />
+            <Route path="posts/new" element={<PostEditor />} />
+            <Route path="posts/edit/:id" element={<PostEditor />} />
+            <Route path="categories" element={<CategoryManager />} />
+            <Route path="sources" element={<SourceAnalysis />} />{" "}
+            {/* 新增来源分析路由 */}
+          </Route>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };
@@ -539,6 +605,7 @@ import { useAuthStore } from "../store/authStore";
 import { useLikeStore } from "../store/likeStore";
 import type { MessageWithLike } from "../types";
 import GuestbookMessage from "./GuestbookMessage";
+import GuestbookWordCloud from "./GuestbookWordCloud"; // 导入词云组件
 
 const PAGE_SIZE = 10;
 
@@ -549,6 +616,7 @@ const Guestbook = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
+  const [showWordCloud, setShowWordCloud] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const { likedMessages, fetchUserLikes, toggleLike } = useLikeStore();
@@ -860,6 +928,19 @@ const Guestbook = () => {
         </div>
       )}
 
+      {/* 🔴 在这里添加词云开关和组件 */}
+      <div className="mb-8">
+        <button
+          onClick={() => setShowWordCloud(!showWordCloud)}
+          className="text-blue-500 hover:text-blue-600 mb-4 inline-flex items-center gap-2"
+        >
+          <span>{showWordCloud ? "📖" : "☁️"}</span>
+          <span>{showWordCloud ? "隐藏词云" : "显示词云"}</span>
+        </button>
+
+        {showWordCloud && <GuestbookWordCloud />}
+      </div>
+
       {/* 留言列表 - 使用 GuestbookMessage 组件 */}
       <div className="space-y-4">
         {messages.map((msg) => (
@@ -902,9 +983,11 @@ export default Guestbook;
 
 ===== src/components/GuestbookMessage.tsx =====
 // src/components/GuestbookMessage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 import type { MessageWithLike } from "../types";
 import type { User } from "@supabase/supabase-js";
+import MessageReactions from "./MessageReactions"; // 导入表情组件
 
 interface GuestbookMessageProps {
   message: MessageWithLike;
@@ -912,7 +995,7 @@ interface GuestbookMessageProps {
   onLike: (id: number) => void;
   onEdit: (id: number, content: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
-  onTogglePin: (id: number) => Promise<void>; // 新增
+  onTogglePin: (id: number) => Promise<void>;
 }
 
 const GuestbookMessage = ({
@@ -927,7 +1010,39 @@ const GuestbookMessage = ({
   const [editContent, setEditContent] = useState(message.content);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 表情反应相关状态
+  const [reactions, setReactions] = useState<{ [key: string]: number }>({});
+  const [userReactions, setUserReactions] = useState<string[]>([]);
+
   const isOwnMessage = currentUser?.id === message.user_id;
+
+  // 获取表情数据
+  const fetchReactions = async () => {
+    const { data } = await supabase
+      .from("message_reactions")
+      .select("reaction, user_id")
+      .eq("message_id", message.id);
+
+    if (data) {
+      const counts: { [key: string]: number } = {};
+      const userEmojis: string[] = [];
+
+      data.forEach((item) => {
+        counts[item.reaction] = (counts[item.reaction] || 0) + 1;
+        if (currentUser && item.user_id === currentUser.id) {
+          userEmojis.push(item.reaction);
+        }
+      });
+
+      setReactions(counts);
+      setUserReactions(userEmojis);
+    }
+  };
+
+  // 加载时获取表情
+  useEffect(() => {
+    fetchReactions();
+  }, [message.id, currentUser]);
 
   const handleEdit = async () => {
     if (!editContent.trim() || editContent === message.content) {
@@ -950,7 +1065,7 @@ const GuestbookMessage = ({
     }
   };
 
-  const isAdmin = currentUser?.email === 'mydykitty@126.com'; // 改成你的管理员邮箱
+  const isAdmin = currentUser?.email === "mydykitty@126.com"; // 改成你的管理员邮箱
 
   return (
     <div className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
@@ -993,48 +1108,66 @@ const GuestbookMessage = ({
 
             {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
             {!isEditing && (
-                <div className="flex gap-1">
-                  {/* 置顶按钮 - 管理员可见（可以操作所有留言） */}
-                  {isAdmin && (
-                      <button
-                          onClick={() => onTogglePin(message.id)}
-                          className={`transition-colors p-1 ${
-                              message.is_pinned
-                                  ? 'text-yellow-500 hover:text-yellow-600'
-                                  : 'text-gray-400 hover:text-yellow-500'
-                          }`}
-                          title={message.is_pinned ? "取消置顶" : "置顶留言"}
-                      >
-                        📌
-                      </button>
-                  )}
+              <div className="flex gap-1">
+                {/* 置顶按钮 - 管理员可见（可以操作所有留言） */}
+                {isAdmin && (
+                  <button
+                    onClick={() => onTogglePin(message.id)}
+                    className={`transition-colors p-1 ${
+                      message.is_pinned
+                        ? "text-yellow-500 hover:text-yellow-600"
+                        : "text-gray-400 hover:text-yellow-500"
+                    }`}
+                    title={message.is_pinned ? "取消置顶" : "置顶留言"}
+                  >
+                    📌
+                  </button>
+                )}
 
-                  {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
-                  {isOwnMessage && (
-                      <>
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
-                            title="编辑"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                            onClick={handleDelete}
-                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                            title="删除"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </>
-                  )}
-                </div>
+                {/* 编辑/删除按钮 - 只有自己的留言才显示 */}
+                {isOwnMessage && (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+                      title="编辑"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                      title="删除"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1107,6 +1240,14 @@ const GuestbookMessage = ({
             <span>{message.likes_count || 0}</span>
           </button>
         </div>
+
+        {/* 使用 MessageReactions 组件 */}
+        <MessageReactions
+          messageId={message.id}
+          reactions={reactions}
+          userReactions={userReactions}
+          onReactionUpdate={fetchReactions}
+        />
       </div>
     </div>
   );
@@ -1115,31 +1256,492 @@ const GuestbookMessage = ({
 export default GuestbookMessage;
 
 
+===== src/components/GuestbookWordCloud.tsx =====
+import React, { useState, useEffect, useRef } from "react";
+import * as d3 from "d3";
+import cloud from "d3-cloud";
+import { supabase } from "../lib/supabase";
+
+interface WordData {
+  text: string;
+  value: number;
+}
+
+const GuestbookWordCloud: React.FC = () => {
+  const [words, setWords] = useState<WordData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<"week" | "month" | "all">("all");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [timeRange]);
+
+  useEffect(() => {
+    if (words.length > 0 && containerRef.current) {
+      renderWordCloud();
+    }
+  }, [words]);
+
+  const fetchMessages = async () => {
+    setLoading(true);
+
+    let query = supabase.from("messages").select("content");
+
+    const now = new Date();
+    if (timeRange === "week") {
+      const weekAgo = new Date(now.setDate(now.getDate() - 7));
+      query = query.gte("created_at", weekAgo.toISOString());
+    } else if (timeRange === "month") {
+      const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
+      query = query.gte("created_at", monthAgo.toISOString());
+    }
+
+    const { data } = await query;
+
+    if (data && data.length > 0) {
+      // 词频统计
+      const wordCount: Record<string, number> = {};
+
+      data.forEach((msg) => {
+        // 按中文和英文标点分割
+        const words = msg.content.split(
+          /[\s，,。.！!？?；;：:、/\\（）()【】\[\]{}]+/,
+        );
+        words.forEach((word: string) => {
+          const trimmed = word.trim();
+          if (trimmed.length > 1) {
+            // 只统计长度大于1的词
+            wordCount[trimmed] = (wordCount[trimmed] || 0) + 1;
+          }
+        });
+      });
+
+      const wordList = Object.entries(wordCount)
+        .map(([text, value]) => ({ text, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 50); // 取前50个词
+
+      setWords(wordList);
+    } else {
+      setWords([]);
+    }
+
+    setLoading(false);
+  };
+
+  const renderWordCloud = () => {
+    if (!containerRef.current || words.length === 0) return;
+
+    const container = containerRef.current;
+    const width = container.clientWidth;
+    const height = 400;
+
+    // 清空容器
+    container.innerHTML = "";
+
+    // 计算字体大小范围
+    const maxValue = Math.max(...words.map((w) => w.value));
+    const minValue = Math.min(...words.map((w) => w.value));
+
+    // 准备词云数据：根据词频计算字体大小 (20-80px)
+    const wordData = words.map((w) => ({
+      text: w.text,
+      size:
+        minValue === maxValue
+          ? 40
+          : 20 + ((w.value - minValue) / (maxValue - minValue)) * 60,
+    }));
+
+    // 创建词云布局
+    const layout = cloud()
+      .size([width, height])
+      .words(wordData)
+      .padding(3) // 词与词之间的间距
+      .rotate(() => (Math.random() > 0.5 ? 0 : 30)) // 随机旋转0或30度
+      .font("sans-serif")
+      .fontSize((d) => d.size!)
+      .on("end", draw);
+
+    layout.start();
+
+    // 绘制函数
+    function draw(words: cloud.Word[]) {
+      // 创建SVG
+      const svg = d3
+        .select(container)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", `translate(${width / 2},${height / 2})`);
+
+      // 添加词云文字
+      svg
+        .selectAll("text")
+        .data(words)
+        .enter()
+        .append("text")
+        .style("font-size", (d) => `${d.size}px`)
+        .style("font-family", "sans-serif")
+        .style("font-weight", "bold")
+        .style("fill", (_d, i) => {
+          // 使用 D3 的颜色方案
+          const colors = [
+            "#3b82f6",
+            "#ef4444",
+            "#10b981",
+            "#f59e0b",
+            "#8b5cf6",
+            "#ec4899",
+            "#06b6d4",
+            "#f97316",
+          ];
+          return colors[i % colors.length];
+        })
+        .style("opacity", 0.8)
+        .style("cursor", "pointer")
+        .attr("text-anchor", "middle")
+        .attr(
+          "transform",
+          (d) => `translate(${d.x},${d.y}) rotate(${d.rotate})`,
+        )
+        .text((d) => d.text!)
+        .on("mouseover", function () {
+          d3.select(this)
+            .style("opacity", 1)
+            .style("font-size", (d) => `${(d as any).size * 1.1}px`);
+        })
+        .on("mouseout", function () {
+          d3.select(this)
+            .style("opacity", 0.8)
+            .style("font-size", (d) => `${(d as any).size}px`);
+        })
+        .on("click", (d) => {
+          console.log("点击词:", d.text);
+          // 可以添加点击搜索功能
+          alert(`你点击了: ${d.text}`);
+        });
+    }
+  };
+
+  // 窗口大小变化时重新渲染
+  useEffect(() => {
+    const handleResize = () => {
+      if (words.length > 0) {
+        renderWordCloud();
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [words]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+      {/* 标题和筛选 */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          ☁️ 留言词云
+        </h2>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTimeRange("week")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              timeRange === "week"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            近一周
+          </button>
+          <button
+            onClick={() => setTimeRange("month")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              timeRange === "month"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            近一月
+          </button>
+          <button
+            onClick={() => setTimeRange("all")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              timeRange === "all"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            全部
+          </button>
+        </div>
+      </div>
+
+      {/* 统计信息 */}
+      {words.length > 0 && (
+        <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+          共 {words.length} 个热门词，点击词可查看详情
+        </div>
+      )}
+
+      {/* 词云容器 */}
+      {words.length > 0 ? (
+        <div
+          ref={containerRef}
+          className="w-full h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+        />
+      ) : (
+        <div className="h-[400px] flex items-center justify-center text-gray-500 border border-gray-200 dark:border-gray-700 rounded-lg">
+          暂无留言数据
+        </div>
+      )}
+
+      {/* 热门词列表 */}
+      {words.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-3">热门词 TOP 10</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {words.slice(0, 10).map((word) => (
+              <div
+                key={word.text}
+                className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"
+              >
+                <span className="font-medium">{word.text}</span>
+                <span className="text-sm text-gray-500">{word.value}次</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default GuestbookWordCloud;
+
+
 ===== src/components/Header.tsx =====
 import React from "react";
+import { Link } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
 import Typewriter from "./Typewriter";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useTranslation } from "react-i18next";
+import LazyImage from "./common/LazyImage";
 
 interface HeaderProps {
   name: string;
   title: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ name, title }) => {
+const Header: React.FC<HeaderProps> = ({}) => {
+  const { user } = useAuthStore();
+  const { t } = useTranslation();
+
   return (
-    <header className="text-center py-8 bg-white dark:bg-gray-900 transition-colors duration-300">
-      <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-        {name}
-      </h1>
-      <h3 className="text-xl text-gray-600 dark:text-gray-300">
-        <Typewriter
-          texts={[title, "React 爱好者", "TypeScript 玩家", "UI 设计控"]}
-        />
-      </h3>
+    <header className="text-center py-8 bg-white dark:bg-gray-900 transition-colors duration-300 relative">
+      {/* 导航栏 - 调整位置，不再使用 absolute */}
+      <div className="flex justify-end items-center gap-3 mb-4">
+        <LanguageSwitcher />
+
+        <Link
+          to="/blog"
+          className="text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-3 py-1 text-sm"
+        >
+          {t("common.blog")}
+        </Link>
+
+        {user && (
+          <Link
+            to="/profile"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-3 py-1 text-sm"
+          >
+            <LazyImage
+              src={user.user_metadata?.avatar_url}
+              alt={user.user_metadata?.user_name}
+              className="w-6 h-6 rounded-full"
+              width={24}
+              height={24}
+            />
+            <span>{t("common.profile")}</span>
+          </Link>
+        )}
+      </div>
+
+      {/* 姓名和标题 */}
+      <div className="mt-4">
+        {" "}
+        {/* 添加上边距，与导航栏分开 */}
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          {t("header.name")}
+        </h1>
+        <h3 className="text-xl text-gray-600 dark:text-gray-300">
+          <Typewriter
+            texts={[
+              t("header.title"),
+              "React 爱好者",
+              "TypeScript 玩家",
+              "UI 设计控",
+            ]}
+          />
+        </h3>
+      </div>
     </header>
   );
 };
 
 export default Header;
+
+
+===== src/components/LanguageSwitcher.tsx =====
+import React from "react";
+import { useTranslation } from "react-i18next";
+
+const LanguageSwitcher: React.FC = () => {
+  const { i18n } = useTranslation();
+
+  const languages = [
+    { code: "zh", name: "中文", flag: "🇨🇳" },
+    { code: "en", name: "English", flag: "🇬🇧" },
+  ];
+
+  return (
+    <div className="relative">
+      <select
+        value={i18n.language}
+        onChange={(e) => i18n.changeLanguage(e.target.value)}
+        className="appearance-none bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-4 py-2 pr-8 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+      >
+        {languages.map((lang) => (
+          <option key={lang.code} value={lang.code}>
+            {lang.flag} {lang.name}
+          </option>
+        ))}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+        ▼
+      </div>
+    </div>
+  );
+};
+
+export default LanguageSwitcher;
+
+
+===== src/components/MessageReactions.tsx =====
+// src/components/MessageReactions.tsx
+import React, { useState } from "react";
+import { supabase } from "../lib/supabase";
+import { useAuthStore } from "../store/authStore";
+
+interface MessageReactionsProps {
+  messageId: number;
+  reactions: { [key: string]: number };
+  userReactions: string[];
+  onReactionUpdate: () => void;
+}
+
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+
+const MessageReactions: React.FC<MessageReactionsProps> = ({
+  messageId,
+  reactions = {},
+  userReactions = [],
+  onReactionUpdate,
+}) => {
+  const user = useAuthStore((state) => state.user);
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleReaction = async (emoji: string) => {
+    if (!user) {
+      alert("请先登录后再添加表情");
+      return;
+    }
+
+    setLoading(emoji);
+
+    try {
+      const hasReaction = userReactions.includes(emoji);
+
+      if (hasReaction) {
+        // 取消表情
+        await supabase
+          .from("message_reactions")
+          .delete()
+          .eq("message_id", messageId)
+          .eq("user_id", user.id)
+          .eq("reaction", emoji);
+      } else {
+        // 添加表情
+        await supabase.from("message_reactions").insert({
+          message_id: messageId,
+          user_id: user.id,
+          reaction: emoji,
+        });
+      }
+
+      // 通知父组件更新
+      onReactionUpdate();
+    } catch (error) {
+      console.error("操作失败:", error);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2">
+      {REACTION_EMOJIS.map((emoji) => {
+        const count = reactions[emoji] || 0;
+        const isActive = userReactions.includes(emoji);
+        const isLoading = loading === emoji;
+
+        return (
+          <button
+            key={emoji}
+            onClick={() => handleReaction(emoji)}
+            disabled={!user || isLoading}
+            className={`
+              inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm
+              transition-all duration-200 border
+              ${
+                isActive
+                  ? "bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-700"
+                  : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }
+              ${!user ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+            `}
+            title={isActive ? "取消反应" : `添加 ${emoji}`}
+          >
+            <span className="text-base">{emoji}</span>
+            {count > 0 && (
+              <span
+                className={`text-xs font-medium ${isActive ? "text-blue-600 dark:text-blue-300" : "text-gray-600 dark:text-gray-400"}`}
+              >
+                {count}
+              </span>
+            )}
+            {isLoading && (
+              <span className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+export default MessageReactions;
 
 
 ===== src/components/Projects.tsx =====
@@ -1277,10 +1879,14 @@ import { useEffect, useState } from "react";
 import { skills } from "../data/skills";
 import type { Skill } from "../data/skills";
 import { useInView } from "react-intersection-observer";
+import SkillsHeatmap from "./SkillsHeatmap"; // 导入热力图组件
 
 const Skills: FC = () => {
   // 监听整个 Skills 区块是否进入视口
   const { ref, inView } = useInView({ triggerOnce: true });
+
+  // 视图模式切换
+  const [viewMode, setViewMode] = useState<"list" | "heatmap">("heatmap");
 
   // 初始化每个技能等级为 0
   const [animatedLevels, setAnimatedLevels] = useState<Skill[]>(
@@ -1307,28 +1913,307 @@ const Skills: FC = () => {
       ref={ref}
       className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg transition-colors duration-300"
     >
-      <h2 className="text-2xl font-bold mb-4">Skills</h2>
-      <div className="space-y-4">
-        {animatedLevels.map((skill) => (
-          <div key={skill.name}>
-            <div className="flex justify-between mb-1">
-              <span className="font-medium">{skill.name}</span>
-              <span className="text-sm">{skill.level}%</span>
-            </div>
-            <div className="w-full bg-gray-200 h-4 rounded overflow-hidden shadow-inner">
-              <div
-                className="bg-blue-500 h-4 rounded transition-all duration-1000 ease-out shadow-md"
-                style={{ width: `${skill.level}%` }}
-              ></div>
-            </div>
-          </div>
-        ))}
+      {/* 标题和视图切换按钮 */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">⚡ 技能栈</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode("list")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              viewMode === "list"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            列表视图
+          </button>
+          <button
+            onClick={() => setViewMode("heatmap")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              viewMode === "heatmap"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            热力图
+          </button>
+        </div>
       </div>
+
+      {/* 根据视图模式显示不同内容 */}
+      {viewMode === "list" ? (
+        <div className="space-y-4">
+          {animatedLevels.map((skill) => (
+            <div key={skill.name}>
+              <div className="flex justify-between mb-1">
+                <span className="font-medium">{skill.name}</span>
+                <span className="text-sm">{skill.level}%</span>
+              </div>
+              <div className="w-full bg-gray-200 h-4 rounded overflow-hidden shadow-inner">
+                <div
+                  className="bg-blue-500 h-4 rounded transition-all duration-1000 ease-out shadow-md"
+                  style={{ width: `${skill.level}%` }}
+                ></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <SkillsHeatmap />
+      )}
     </section>
   );
 };
 
 export default Skills;
+
+
+===== src/components/SkillsHeatmap.tsx =====
+import React, { useEffect, useState } from "react";
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { skills } from "../data/skills";
+
+interface SkillData {
+  subject: string;
+  value: number;
+  fullMark: number;
+}
+
+const SkillsHeatmap: React.FC = () => {
+  const [data, setData] = useState<SkillData[]>([]);
+  const [viewType, setViewType] = useState<"radar" | "bar">("radar");
+
+  useEffect(() => {
+    // 转换技能数据格式
+    const chartData = skills.map((skill) => ({
+      subject: skill.name,
+      value: skill.level,
+      fullMark: 100,
+    }));
+    setData(chartData);
+  }, []);
+
+  // 计算平均熟练度
+  const averageLevel = Math.round(
+    skills.reduce((sum, skill) => sum + skill.level, 0) / skills.length,
+  );
+
+  // 最高技能
+  const topSkill = skills.reduce(
+    (max, skill) => (skill.level > max.level ? skill : max),
+    skills[0],
+  );
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+      {/* 标题和统计 */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          🔥 技能热力图
+        </h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewType("radar")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              viewType === "radar"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+            }`}
+          >
+            雷达图
+          </button>
+          <button
+            onClick={() => setViewType("bar")}
+            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+              viewType === "bar"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+            }`}
+          >
+            柱状图
+          </button>
+        </div>
+      </div>
+
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+          <div className="text-sm text-blue-600 dark:text-blue-400">
+            平均熟练度
+          </div>
+          <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+            {averageLevel}%
+          </div>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+          <div className="text-sm text-green-600 dark:text-green-400">
+            最强技能
+          </div>
+          <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+            {topSkill.name}
+          </div>
+          <div className="text-xs text-green-600 dark:text-green-400">
+            {topSkill.level}%
+          </div>
+        </div>
+      </div>
+
+      {/* 图表区域 */}
+      <div className="h-80 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {viewType === "radar" ? (
+            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
+              <PolarGrid
+                stroke={
+                  document.documentElement.classList.contains("dark")
+                    ? "#374151"
+                    : "#e5e7eb"
+                }
+              />
+              <PolarAngleAxis
+                dataKey="subject"
+                tick={{
+                  fill: document.documentElement.classList.contains("dark")
+                    ? "#9ca3af"
+                    : "#4b5563",
+                  fontSize: 12,
+                }}
+              />
+              <PolarRadiusAxis
+                angle={30}
+                domain={[0, 100]}
+                tick={{
+                  fill: document.documentElement.classList.contains("dark")
+                    ? "#9ca3af"
+                    : "#4b5563",
+                  fontSize: 10,
+                }}
+              />
+              <Radar
+                name="技能熟练度"
+                dataKey="value"
+                stroke="#3b82f6"
+                fill="#3b82f6"
+                fillOpacity={0.6}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: document.documentElement.classList.contains(
+                    "dark",
+                  )
+                    ? "#1f2937"
+                    : "#ffffff",
+                  borderColor: document.documentElement.classList.contains(
+                    "dark",
+                  )
+                    ? "#374151"
+                    : "#e5e7eb",
+                  color: document.documentElement.classList.contains("dark")
+                    ? "#ffffff"
+                    : "#000000",
+                }}
+              />
+            </RadarChart>
+          ) : (
+            // 🔴 真正的柱状图
+            <BarChart
+              data={data}
+              layout="vertical"
+              margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={
+                  document.documentElement.classList.contains("dark")
+                    ? "#374151"
+                    : "#e5e7eb"
+                }
+              />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                tick={{
+                  fill: document.documentElement.classList.contains("dark")
+                    ? "#9ca3af"
+                    : "#4b5563",
+                  fontSize: 12,
+                }}
+              />
+              <YAxis
+                type="category"
+                dataKey="subject"
+                width={10}
+                tick={{
+                  fill: document.documentElement.classList.contains("dark")
+                    ? "#9ca3af"
+                    : "#4b5563",
+                  fontSize: 12,
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: document.documentElement.classList.contains(
+                    "dark",
+                  )
+                    ? "#1f2937"
+                    : "#ffffff",
+                  borderColor: document.documentElement.classList.contains(
+                    "dark",
+                  )
+                    ? "#374151"
+                    : "#e5e7eb",
+                  color: document.documentElement.classList.contains("dark")
+                    ? "#ffffff"
+                    : "#000000",
+                }}
+                formatter={(value: number | undefined) => {
+                  if (value === undefined || value === null) {
+                    return ["0%", "熟练度"]; // 或者返回 ["-", "熟练度"]
+                  }
+                  return [`${value}%`, "熟练度"];
+                }}
+              />
+              <Bar
+                dataKey="value"
+                fill="#3b82f6"
+                radius={[0, 4, 4, 0]}
+                background={{
+                  fill: document.documentElement.classList.contains("dark")
+                    ? "#374151"
+                    : "#f3f4f6",
+                }}
+              />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+
+      {/* 图例说明 */}
+      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-4">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-blue-500 rounded"></div>
+          <span>当前技能水平</span>
+        </div>
+        <div>• 满分100%</div>
+      </div>
+    </div>
+  );
+};
+
+export default SkillsHeatmap;
 
 
 ===== src/components/Typewriter.tsx =====
@@ -1483,51 +2368,527 @@ const VisitorCounter = () => {
 export default VisitorCounter;
 
 
+===== src/components/admin/AdminLayout.tsx =====
+import React from "react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useAuthStore } from "../../store/authStore";
+
+const AdminLayout: React.FC = () => {
+  const { user, signOut } = useAuthStore();
+  const navigate = useNavigate();
+
+  const isAdmin = user?.email === "mydykitty@126.com";
+
+  if (!user) {
+    navigate("/");
+    return null;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold mb-4">无权访问</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          只有管理员可以访问后台
+        </p>
+        <Link
+          to="/"
+          className="text-blue-500 hover:text-blue-600 mt-4 inline-block"
+        >
+          返回首页
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <nav className="bg-white dark:bg-gray-800 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <Link
+                to="/admin"
+                className="flex items-center px-4 text-gray-900 dark:text-white font-bold"
+              >
+                管理后台
+              </Link>
+              <div className="flex space-x-4 ml-6">
+                <Link
+                  to="/admin/dashboard"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  仪表盘
+                </Link>
+                <Link
+                  to="/admin/posts"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  文章管理
+                </Link>
+                <Link
+                  to="/admin/categories"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  分类管理
+                </Link>
+                {/* 🔴 新增：来源分析 */}
+                <Link
+                  to="/admin/sources"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  来源分析
+                </Link>
+                <Link
+                  to="/profile"
+                  className="inline-flex items-center px-3 text-gray-700 dark:text-gray-300 hover:text-blue-500"
+                >
+                  个人资料
+                </Link>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link
+                to="/"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-500"
+              >
+                返回网站
+              </Link>
+              <button
+                onClick={signOut}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                退出
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="py-8">
+        <Outlet />
+      </main>
+    </div>
+  );
+};
+
+export default AdminLayout;
+
+
+===== src/components/admin/PostEditor.tsx =====
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import { useAuthStore } from "../../store/authStore";
+import type { Category } from "../../types/blog";
+
+const PostEditor: React.FC = () => {
+  const { id } = useParams(); // 如果有id表示编辑，没有就是新建
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [tags, setTags] = useState("");
+  const [isPublished, setIsPublished] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // 加载分类列表
+  useEffect(() => {
+    fetchCategories();
+    if (id) {
+      fetchPost();
+    }
+  }, [id]);
+
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .order("name");
+    setCategories(data || []);
+  };
+
+  // 如果是编辑模式，加载文章数据
+  const fetchPost = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (data) {
+      setTitle(data.title);
+      setContent(data.content);
+      setExcerpt(data.excerpt || "");
+      setCategoryId(data.category_id);
+      setTags(data.tags?.join(", ") || "");
+      setIsPublished(data.is_published);
+    }
+    setLoading(false);
+  };
+
+  // 生成URL友好的slug
+  const generateSlug = (title: string): string => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+  };
+
+  // 保存文章
+  const savePost = async () => {
+    if (!title || !content) {
+      alert("标题和内容不能为空");
+      return;
+    }
+
+    setSaving(true);
+    const slug = generateSlug(title);
+    const tagArray = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t);
+
+    // 准备文章数据
+    const postData = {
+      title,
+      slug,
+      content,
+      excerpt: excerpt || content.substring(0, 150) + "...",
+      category_id: categoryId,
+      tags: tagArray,
+      is_published: isPublished,
+      published_at: isPublished ? new Date().toISOString() : null,
+      user_id: user?.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      let oldCategoryId = null;
+
+      // 如果是编辑模式，先获取原来的分类ID
+      if (id) {
+        const { data: oldPost } = await supabase
+          .from("posts")
+          .select("category_id")
+          .eq("id", id)
+          .single();
+
+        oldCategoryId = oldPost?.category_id;
+      }
+
+      // 保存文章
+      let error;
+      if (id) {
+        // 编辑文章
+        ({ error } = await supabase
+          .from("posts")
+          .update(postData)
+          .eq("id", id));
+      } else {
+        // 新建文章
+        ({ error } = await supabase.from("posts").insert([postData]));
+      }
+
+      if (error) throw error;
+
+      // 🔴 更新分类的文章数量（写法三）
+      if (id) {
+        // 编辑模式：处理分类变化
+        if (oldCategoryId !== categoryId) {
+          // 旧分类减1
+          if (oldCategoryId) {
+            // 先查询当前值
+            const { data: oldCategory } = await supabase
+              .from("categories")
+              .select("post_count")
+              .eq("id", oldCategoryId)
+              .single();
+
+            if (oldCategory) {
+              await supabase
+                .from("categories")
+                .update({ post_count: Math.max(0, oldCategory.post_count - 1) })
+                .eq("id", oldCategoryId);
+            }
+          }
+
+          // 新分类加1
+          if (categoryId) {
+            // 先查询当前值
+            const { data: newCategory } = await supabase
+              .from("categories")
+              .select("post_count")
+              .eq("id", categoryId)
+              .single();
+
+            if (newCategory) {
+              await supabase
+                .from("categories")
+                .update({ post_count: newCategory.post_count + 1 })
+                .eq("id", categoryId);
+            }
+          }
+        }
+      } else {
+        // 新建模式：有分类的话直接加1
+        if (categoryId) {
+          // 先查询当前值
+          const { data: category } = await supabase
+            .from("categories")
+            .select("post_count")
+            .eq("id", categoryId)
+            .single();
+
+          if (category) {
+            await supabase
+              .from("categories")
+              .update({ post_count: category.post_count + 1 })
+              .eq("id", categoryId);
+          }
+        }
+      }
+
+      navigate("/admin/posts");
+    } catch (err: any) {
+      alert("保存失败：" + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4">
+      {/* 头部 */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">{id ? "编辑文章" : "写新文章"}</h1>
+        <button
+          onClick={() => navigate("/admin/posts")}
+          className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900"
+        >
+          取消
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        {/* 标题 */}
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            标题 <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
+            placeholder="请输入文章标题"
+          />
+        </div>
+
+        {/* 分类和标签 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">分类</label>
+            <select
+              value={categoryId || ""}
+              onChange={(e) => setCategoryId(Number(e.target.value) || null)}
+              className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+            >
+              <option value="">无分类</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">标签</label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+              placeholder="用逗号分隔，如：React, TypeScript"
+            />
+          </div>
+        </div>
+
+        {/* 摘要 */}
+        <div>
+          <label className="block text-sm font-medium mb-2">摘要</label>
+          <textarea
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value)}
+            rows={3}
+            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+            placeholder="文章摘要（选填，不填则自动截取内容前150字）"
+          />
+        </div>
+
+        {/* 内容 */}
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            内容 <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={20}
+            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 font-mono"
+            placeholder="支持 Markdown 格式"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            支持 Markdown 语法： # 标题， **加粗**， - 列表， [链接](url) 等
+          </p>
+        </div>
+
+        {/* 发布选项 */}
+        <div className="flex items-center gap-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isPublished}
+              onChange={(e) => setIsPublished(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300"
+            />
+            <span className="text-sm font-medium">立即发布</span>
+          </label>
+          {!isPublished && (
+            <span className="text-sm text-yellow-600 dark:text-yellow-500">
+              ⚠️ 草稿状态，不会在博客列表显示
+            </span>
+          )}
+        </div>
+
+        {/* 按钮组 */}
+        <div className="flex gap-4 pt-4">
+          <button
+            onClick={savePost}
+            disabled={saving}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? "保存中..." : id ? "更新文章" : "发布文章"}
+          </button>
+          <button
+            onClick={() => navigate("/admin/posts")}
+            className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            返回列表
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PostEditor;
+
+
 ===== src/components/blog/BlogCard.tsx =====
-// 博客列表组件
 import React from "react";
 import { Link } from "react-router-dom";
 import type { Post } from "../../types/blog";
+import LazyImage from "../common/LazyImage";
 
 interface BlogCardProps {
   post: Post;
+  searchQuery?: string; // 新增：搜索关键词，用于高亮
 }
 
-const BlogCard: React.FC<BlogCardProps> = ({ post }) => {
+const BlogCard: React.FC<BlogCardProps> = ({ post, searchQuery = "" }) => {
+  // 高亮搜索关键词的函数
+  const highlightText = (text: string, query: string) => {
+    if (!query || !text) return text;
+
+    try {
+      const parts = text.split(new RegExp(`(${query})`, "gi"));
+      return parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark
+            key={i}
+            className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      );
+    } catch (e) {
+      // 如果正则表达式出错（比如特殊字符），返回原文本
+      return text;
+    }
+  };
+
+  // 获取显示的摘要（如果有excerpt就用，否则截取内容）
+  const getExcerpt = () => {
+    if (post.excerpt) return post.excerpt;
+    return post.content.substring(0, 150) + "...";
+  };
+
   return (
     <article className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       {post.cover_image && (
-        <img
+        <LazyImage
           src={post.cover_image}
           alt={post.title}
           className="w-full h-48 object-cover"
+          width={400}
+          height={192}
         />
       )}
       <div className="p-6">
-        <div className="flex gap-2 mb-2">
-          {post.tags?.map((tag) => (
-            <span
-              key={tag}
-              className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-1 rounded"
-            >
-              #{tag}
-            </span>
-          ))}
-        </div>
+        {/* 标签区域 */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {post.tags.map((tag) => (
+              <span
+                key={tag}
+                className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-1 rounded"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* 标题（可高亮） */}
         <Link to={`/blog/${post.slug}`}>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 mb-2">
-            {post.title}
+            {searchQuery ? highlightText(post.title, searchQuery) : post.title}
           </h3>
         </Link>
+
+        {/* 摘要（可高亮） */}
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          {post.excerpt || post.content.substring(0, 150) + "..."}
+          {searchQuery
+            ? highlightText(getExcerpt(), searchQuery)
+            : getExcerpt()}
         </p>
+
+        {/* 元信息 */}
         <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
           <span>{new Date(post.published_at).toLocaleDateString("zh-CN")}</span>
           <div className="flex gap-4">
-            <span>👁️ {post.view_count}</span>
-            <span>❤️ {post.like_count}</span>
-            <span>💬 {post.comment_count}</span>
+            <span title="阅读量">👁️ {post.view_count}</span>
+            <span title="点赞数">❤️ {post.like_count}</span>
+            <span title="评论数">💬 {post.comment_count}</span>
           </div>
         </div>
       </div>
@@ -1536,6 +2897,276 @@ const BlogCard: React.FC<BlogCardProps> = ({ post }) => {
 };
 
 export default BlogCard;
+
+
+===== src/components/blog/BlogComments.tsx =====
+import React, { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { useAuthStore } from "../../store/authStore";
+
+interface Comment {
+  id: number;
+  content: string;
+  created_at: string;
+  user_id: string;
+  user?: {
+    name: string;
+    avatar: string;
+  };
+  likes_count: number;
+}
+
+interface BlogCommentsProps {
+  postId: number;
+}
+
+const BlogComments: React.FC<BlogCommentsProps> = ({ postId }) => {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [loading, setLoading] = useState(false);
+  const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    fetchComments();
+  }, [postId]);
+
+  const fetchComments = async () => {
+    const { data } = await supabase
+      .from("post_comments")
+      .select("*")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: false });
+
+    setComments(data || []);
+  };
+
+  const submitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newComment.trim()) return;
+
+    setLoading(true);
+    const { error } = await supabase.from("post_comments").insert({
+      post_id: postId,
+      user_id: user.id,
+      content: newComment.trim(),
+    });
+
+    if (!error) {
+      setNewComment("");
+      fetchComments();
+      // 更新文章评论数
+      await supabase
+        .from("posts")
+        .update({ comment_count: comments.length + 1 })
+        .eq("id", postId);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="mt-12">
+      <h3 className="text-2xl font-bold mb-6">评论 ({comments.length})</h3>
+
+      {/* 评论表单 */}
+      {user ? (
+        <form onSubmit={submitComment} className="mb-8">
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="写下你的评论..."
+            rows={3}
+            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2 px-6 py-2 bg-blue-500 text-white rounded-lg"
+          >
+            {loading ? "发布中..." : "发布评论"}
+          </button>
+        </form>
+      ) : (
+        <p className="mb-8 text-gray-500">请先登录后再评论</p>
+      )}
+
+      {/* 评论列表 */}
+      <div className="space-y-4">
+        {comments.map((comment) => (
+          <div
+            key={comment.id}
+            className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+          >
+            <p>{comment.content}</p>
+            <div className="mt-2 text-sm text-gray-500">
+              {new Date(comment.created_at).toLocaleString()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default BlogComments;
+
+
+===== src/components/blog/BlogTOC.tsx =====
+import React, { useEffect, useState } from "react";
+
+interface TOCItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+const BlogTOC: React.FC<{ content: string }> = ({ content }) => {
+  const [headings, setHeadings] = useState<TOCItem[]>([]);
+
+  useEffect(() => {
+    const lines = content.split("\n");
+    const extracted: TOCItem[] = [];
+
+    lines.forEach((line) => {
+      const match = line.match(/^(#{1,3})\s+(.+)/);
+      if (match) {
+        const level = match[1].length;
+        const text = match[2];
+        const id = text.toLowerCase().replace(/\s+/g, "-");
+        extracted.push({ id, text, level });
+      }
+    });
+
+    setHeadings(extracted);
+  }, [content]);
+
+  if (headings.length === 0) return null;
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 sticky top-4">
+      <h4 className="font-bold mb-3">📖 目录</h4>
+      <nav>
+        {headings.map((heading, index) => (
+          <a
+            key={index}
+            href={`#${heading.id}`}
+            className="block text-sm hover:text-blue-500 transition-colors mb-1"
+            style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}
+          >
+            {heading.text}
+          </a>
+        ))}
+      </nav>
+    </div>
+  );
+};
+
+export default BlogTOC;
+
+
+===== src/components/blog/CodeBlock.tsx =====
+import React from "react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+  vscDarkPlus,
+  vs,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
+
+interface CodeBlockProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+const CodeBlock: React.FC<CodeBlockProps> = ({ className, children }) => {
+  const match = /language-(\w+)/.exec(className || "");
+  const isDark = document.documentElement.classList.contains("dark");
+
+  // 判断是否是行内代码
+  const isInline = !match && String(children).includes("\n") === false;
+
+  // 如果是行内代码，直接返回code标签
+  if (isInline) {
+    return <code className={className}>{children}</code>;
+  }
+
+  // 如果是代码块且有语言标记，使用语法高亮
+  if (match) {
+    return (
+      <div className="relative group">
+        <SyntaxHighlighter
+          language={match[1]}
+          style={isDark ? vscDarkPlus : vs}
+          showLineNumbers={true}
+          wrapLines={true}
+          customStyle={{
+            margin: 0,
+            borderRadius: "0.5rem",
+            fontSize: "0.9rem",
+            padding: "1rem",
+          }}
+        >
+          {String(children).replace(/\n$/, "")}
+        </SyntaxHighlighter>
+
+        {/* 复制按钮 */}
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(String(children).replace(/\n$/, ""));
+            alert("代码已复制到剪贴板");
+          }}
+          className="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-700 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          复制
+        </button>
+      </div>
+    );
+  }
+
+  // 如果是代码块但没有语言标记，使用普通pre
+  return (
+    <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
+      <code>{children}</code>
+    </pre>
+  );
+};
+
+export default CodeBlock;
+
+
+===== src/components/blog/ReadingProgress.tsx =====
+import React, { useEffect, useState } from "react";
+
+const ReadingProgress: React.FC = () => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      // 计算滚动百分比
+      const totalScroll = documentHeight - windowHeight;
+      const currentProgress =
+        totalScroll > 0 ? (scrollTop / totalScroll) * 100 : 0;
+
+      setProgress(currentProgress);
+    };
+
+    window.addEventListener("scroll", updateProgress);
+    return () => window.removeEventListener("scroll", updateProgress);
+  }, []);
+
+  return (
+    <div className="fixed top-0 left-0 w-full h-1 bg-gray-200 dark:bg-gray-700 z-50">
+      <div
+        className="h-full bg-blue-500 transition-all duration-100"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
+};
+
+export default ReadingProgress;
 
 
 ===== src/components/common/Button.tsx =====
@@ -1551,40 +3182,251 @@ const Button: FC<ButtonHTMLAttributes<HTMLButtonElement>> = (props) => (
 export default Button;
 
 
-===== src/components/common/Card.tsx =====
-import type { FC, ReactNode } from "react";
+===== src/components/common/LazyImage.tsx =====
+import React, { useState, useEffect, useRef } from "react";
 
-interface CardProps {
-  children: ReactNode;
+interface LazyImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  placeholder?: string;
+  webp?: boolean;
+  width?: number;
+  height?: number;
+  mobile?: string; // 移动端图片
+  tablet?: string; // 平板端图片
+  desktop?: string; // 桌面端图片
 }
 
-const Card: FC<CardProps> = ({ children }) => (
-  <div className="p-4 border rounded-lg bg-white dark:bg-gray-800 shadow hover:shadow-lg transition-shadow mb-4">
-    {children}
-  </div>
-);
+const LazyImage: React.FC<LazyImageProps> = ({
+  src,
+  alt,
+  className = "",
+  placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%23f0f0f0"/%3E%3C/svg%3E',
+  webp = true,
+  width,
+  height,
+  mobile,
+  tablet,
+  desktop,
+}) => {
+  const [imageSrc, setImageSrc] = useState(placeholder);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-export default Card;
+  // 根据屏幕宽度选择图片
+  const getResponsiveImage = () => {
+    if (typeof window === "undefined") return src;
 
+    const width = window.innerWidth;
+    if (mobile && width < 640) return mobile;
+    if (tablet && width >= 640 && width < 1024) return tablet;
+    if (desktop && width >= 1024) return desktop;
+    return src;
+  };
 
-===== src/components/common/Section.tsx =====
-import type { FC, ReactNode } from "react";
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            loadImage();
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: "50px", threshold: 0.01 },
+    );
 
-interface SectionProps {
-  title?: string;
-  children: ReactNode;
-}
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
 
-const Section: FC<SectionProps> = ({ title, children }) => {
+    return () => observer.disconnect();
+  }, []);
+
+  const loadImage = () => {
+    const img = new Image();
+
+    // 获取响应式图片
+    const responsiveSrc = getResponsiveImage();
+
+    // 检查是否支持WebP
+    const useWebP = webp && checkWebPSupport();
+
+    let imageUrl = responsiveSrc;
+    if (useWebP && responsiveSrc.match(/\.(jpg|jpeg|png)$/)) {
+      imageUrl = responsiveSrc.replace(/\.(jpg|jpeg|png)$/, ".webp");
+    }
+
+    img.src = imageUrl;
+    img.onload = () => {
+      setImageSrc(imageUrl);
+      setIsLoaded(true);
+    };
+    img.onerror = () => {
+      if (useWebP) {
+        loadOriginalImage(responsiveSrc);
+      } else {
+        setError(true);
+        setImageSrc(placeholder);
+      }
+    };
+  };
+
+  const loadOriginalImage = (originalSrc: string) => {
+    const img = new Image();
+    img.src = originalSrc;
+    img.onload = () => {
+      setImageSrc(originalSrc);
+      setIsLoaded(true);
+    };
+    img.onerror = () => {
+      setError(true);
+      setImageSrc(placeholder);
+    };
+  };
+
+  const checkWebPSupport = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL("image/webp").indexOf("image/webp") === 5;
+  };
+
   return (
-    <section className="mb-8">
-      {title && <h2 className="text-2xl font-bold mb-4">{title}</h2>}
-      {children}
-    </section>
+    <div className="relative overflow-hidden" style={{ width, height }}>
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+      )}
+
+      <img
+        ref={imgRef}
+        src={imageSrc}
+        alt={alt}
+        className={`
+          ${className}
+          transition-opacity duration-300
+          ${isLoaded ? "opacity-100" : "opacity-0"}
+          ${error ? "opacity-50" : ""}
+        `}
+        style={{ width, height }}
+        loading="lazy"
+      />
+
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-500 text-sm">
+          图片加载失败
+        </div>
+      )}
+    </div>
   );
 };
 
-export default Section;
+export default LazyImage;
+
+
+===== src/components/common/LoadingSpinner.tsx =====
+import React from "react";
+
+interface LoadingSpinnerProps {
+  /** 是否全屏显示 */
+  fullScreen?: boolean;
+  /** 尺寸：sm|md|lg */
+  size?: "sm" | "md" | "lg";
+  /** 加载文字 */
+  text?: string;
+}
+
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+  fullScreen = false,
+  size = "md",
+  text,
+}) => {
+  // 尺寸映射
+  const sizeMap = {
+    sm: "h-6 w-6 border-2",
+    md: "h-12 w-12 border-4",
+    lg: "h-16 w-16 border-4",
+  };
+
+  // 全屏样式
+  const containerClass = fullScreen
+    ? "fixed inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 z-50"
+    : "flex flex-col items-center justify-center py-12";
+
+  return (
+    <div className={containerClass}>
+      {/* 旋转圆圈 */}
+      <div
+        className={`${sizeMap[size]} rounded-full border-blue-200 border-t-blue-500 animate-spin`}
+      />
+
+      {/* 加载文字 */}
+      {text && <p className="mt-4 text-gray-600 dark:text-gray-400">{text}</p>}
+    </div>
+  );
+};
+
+export default LoadingSpinner;
+
+
+===== src/components/common/ResponsiveImage.tsx =====
+import React from "react";
+
+interface ResponsiveImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  sizes?: string;
+  mobile?: string; // 移动端图片
+  tablet?: string; // 平板端图片
+  desktop?: string; // 桌面端图片
+}
+
+const ResponsiveImage: React.FC<ResponsiveImageProps> = ({
+  src,
+  alt,
+  className = "",
+  sizes = "100vw",
+  mobile,
+  tablet,
+  desktop,
+}) => {
+  // 生成srcset
+  const generateSrcSet = () => {
+    const sources = [];
+
+    if (mobile) {
+      sources.push(`${mobile} 480w`);
+    }
+    if (tablet) {
+      sources.push(`${tablet} 768w`);
+    }
+    if (desktop) {
+      sources.push(`${desktop} 1024w`);
+    }
+
+    // 默认图片
+    sources.push(`${src} 1920w`);
+
+    return sources.join(", ");
+  };
+
+  return (
+    <img
+      src={src}
+      srcSet={generateSrcSet()}
+      sizes={sizes}
+      alt={alt}
+      className={className}
+      loading="lazy"
+    />
+  );
+};
+
+export default ResponsiveImage;
 
 
 ===== src/data/skills.ts =====
@@ -1603,8 +3445,37 @@ export const skills: Skill[] = [
 ];
 
 
+===== src/i18n/config.ts =====
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+
+import zh from './locales/zh.json';
+import en from './locales/en.json';
+
+i18n
+  .use(LanguageDetector)  // 自动检测语言
+  .use(initReactI18next)  // 绑定 react
+  .init({
+    resources: {
+      zh: { translation: zh },
+      en: { translation: en }
+    },
+    fallbackLng: 'zh',     // 默认中文
+    interpolation: {
+      escapeValue: false   // React 已经安全
+    },
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage']
+    }
+  });
+
+export default i18n;
+
 ===== src/index.css =====
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";  /* 只需添加这一行 */
 @custom-variant dark (&:where(.dark, .dark *)); /* 手动启用 dark variant */
 
 /* 基础样式，让Tailwind处理主题切换 */
@@ -1644,34 +3515,58 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 ===== src/main.tsx =====
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
 import "./index.css";
-import App from "./App.tsx";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+// 引入 workbox 窗口工具
+import { registerSW } from "virtual:pwa-register";
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    // 当检测到新版本时触发
+    if (confirm("发现新版本，是否刷新页面以获取最新内容？")) {
+      updateSW(true);
+    }
+  },
+  onOfflineReady() {
+    // 当应用准备好离线使用时触发
+    console.log("应用已准备好离线使用");
+    // 这里可以显示一个 Toast 提示用户 "已支持离线访问"
+  },
+});
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>,
+  </React.StrictMode>,
 );
 
 
 ===== src/pages/BlogPage.tsx =====
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import BlogCard from "../components/blog/BlogCard";
-import type { Post } from "../types/blog";
+import type { Post, Category } from "../types/blog";
 
 const BlogPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+
+  // 🔴 新增：搜索相关状态
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   useEffect(() => {
     fetchPosts();
     fetchCategories();
-  }, [selectedCategory]);
+  }, [selectedCategory, searchQuery]); // 分类或搜索变化时重新查询
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -1686,8 +3581,16 @@ const BlogPage: React.FC = () => {
       .eq("is_published", true)
       .order("published_at", { ascending: false });
 
+    // 🔴 按分类筛选
     if (selectedCategory) {
       query = query.eq("category_id", selectedCategory);
+    }
+
+    // 🔴 按搜索词筛选
+    if (searchQuery.trim()) {
+      query = query.or(
+        `title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`,
+      );
     }
 
     const { data } = await query;
@@ -1703,8 +3606,43 @@ const BlogPage: React.FC = () => {
     setCategories(data || []);
   };
 
+  // 🔴 防抖搜索
+  const handleSearch = (value: string) => {
+    setSearchQuery(value); // 输入框实时更新
+
+    // 清除之前的定时器
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // 设置新的定时器（500ms后搜索）
+    const timeout = setTimeout(() => {
+      fetchPosts(); // 真正执行搜索
+    }, 500);
+
+    setSearchTimeout(timeout);
+  };
+
+  // 组件卸载时清除定时器
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="mb-4">
+        <Link
+          to="/"
+          className="text-blue-500 hover:text-blue-600 inline-flex items-center gap-1"
+        >
+          <span>←</span> 返回首页
+        </Link>
+      </div>
+
       <div className="flex gap-8">
         {/* 侧边栏 */}
         <aside className="w-64 flex-shrink-0">
@@ -1744,16 +3682,66 @@ const BlogPage: React.FC = () => {
 
         {/* 文章列表 */}
         <main className="flex-1">
-          <h1 className="text-3xl font-bold mb-8">博客文章</h1>
+          {/* 🔴 搜索框 */}
+          <div className="mb-6">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="搜索文章标题或内容..."
+                className="w-full px-4 py-3 pl-10 border rounded-lg dark:bg-gray-800 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
+              />
+              <svg
+                className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+
+              {/* 搜索状态提示 */}
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    fetchPosts();
+                  }}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* 搜索结果提示 */}
+            {searchQuery && !loading && (
+              <p className="mt-2 text-sm text-gray-500">
+                找到 {posts.length} 篇包含 "{searchQuery}" 的文章
+              </p>
+            )}
+          </div>
+
+          <h1 className="text-3xl font-bold mb-8">
+            {searchQuery ? `搜索: ${searchQuery}` : "博客文章"}
+          </h1>
 
           {loading ? (
             <div className="text-center py-12">加载中...</div>
           ) : posts.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">暂无文章</div>
+            <div className="text-center py-12 text-gray-500">
+              {searchQuery ? "没有找到相关文章" : "暂无文章"}
+            </div>
           ) : (
             <div className="grid gap-6">
               {posts.map((post) => (
-                <BlogCard key={post.id} post={post} />
+                <BlogCard key={post.id} post={post} searchQuery={searchQuery} />
               ))}
             </div>
           )}
@@ -1768,11 +3756,15 @@ export default BlogPage;
 
 ===== src/pages/PostPage.tsx =====
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import type { Post } from "../types/blog";
+import BlogComments from "../components/blog/BlogComments";
+import ReadingProgress from "../components/blog/ReadingProgress";
+import CodeBlock from '../components/blog/CodeBlock';
+
 
 const PostPage: React.FC = () => {
   const { slug } = useParams();
@@ -1784,21 +3776,14 @@ const PostPage: React.FC = () => {
   }, [slug]);
 
   const fetchPost = async () => {
-    // 获取文章详情
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("posts")
-      .select(
-        `
-        *,
-        category:categories(*)
-      `,
-      )
+      .select(`*, category:categories(*)`)
       .eq("slug", slug)
       .single();
 
     if (data) {
       setPost(data);
-      // 增加浏览量
       await supabase
         .from("posts")
         .update({ view_count: (data.view_count || 0) + 1 })
@@ -1811,56 +3796,1523 @@ const PostPage: React.FC = () => {
   if (!post) return <div className="text-center py-12">文章不存在</div>;
 
   return (
-    <article className="max-w-3xl mx-auto px-4 py-8">
-      {/* 封面图 */}
-      {post.cover_image && (
-        <img
-          src={post.cover_image}
-          alt={post.title}
-          className="w-full h-96 object-cover rounded-lg mb-8"
-        />
-      )}
+    <>
+      <ReadingProgress />
+      <article className="max-w-3xl mx-auto px-4 py-8">
+        {/* 返回链接 */}
+        <Link
+          to="/blog"
+          className="text-blue-500 hover:text-blue-600 mb-4 inline-block"
+        >
+          ← 返回博客列表
+        </Link>
 
-      {/* 标题区域 */}
-      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+        {/* 标题 */}
+        <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
 
-      <div className="flex items-center gap-4 mb-8 text-gray-500 dark:text-gray-400">
-        <span>📅 {new Date(post.published_at).toLocaleDateString()}</span>
-        <span>👁️ {post.view_count} 阅读</span>
-        <span>❤️ {post.like_count} 点赞</span>
-      </div>
+        {/* 元信息 */}
+        <div className="flex items-center gap-4 mb-8 text-gray-500 dark:text-gray-400">
+          <span>📅 {new Date(post.published_at).toLocaleDateString()}</span>
+          <span>👁️ {post.view_count} 阅读</span>
+          <span>❤️ {post.like_count} 点赞</span>
+        </div>
 
-      {/* 标签 */}
-      <div className="flex gap-2 mb-8">
-        {post.tags?.map((tag) => (
-          <span
-            key={tag}
-            className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
+        {/* 标签 */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex gap-2 mb-8">
+            {post.tags.map((tag) => (
+              <span
+                key={tag}
+                className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Markdown内容 - 包含代码高亮 */}
+        <div className="prose dark:prose-invert max-w-none">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code: CodeBlock,
+            }}
           >
-            #{tag}
-          </span>
-        ))}
-      </div>
+            {post.content}
+          </ReactMarkdown>
+        </div>
 
-      {/* Markdown内容 */}
-      <div className="prose dark:prose-invert max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {post.content}
-        </ReactMarkdown>
-      </div>
-
-      {/* 点赞按钮 */}
-      <div className="mt-12 flex justify-center">
-        <button className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
-          <span>❤️</span>
-          <span>点赞 {post.like_count}</span>
-        </button>
-      </div>
-    </article>
+        {/* 评论组件 */}
+        <BlogComments postId={post.id} />
+      </article>
+    </>
   );
 };
 
 export default PostPage;
+
+
+===== src/pages/ProfilePage.tsx =====
+import React, { useState, useEffect } from "react";
+import { useAuthStore } from "../store/authStore";
+import { supabase } from "../lib/supabase";
+import { Link } from "react-router-dom";
+
+interface ProfileData {
+  username: string;
+  full_name: string;
+  avatar_url: string;
+  bio: string;
+  website: string;
+  location: string;
+  updated_at: string;
+}
+
+const ProfilePage: React.FC = () => {
+  const { user } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  // 个人资料数据
+  const [profile, setProfile] = useState<ProfileData>({
+    username: "",
+    full_name: "",
+    avatar_url: "",
+    bio: "",
+    website: "",
+    location: "",
+    updated_at: "",
+  });
+
+  // 编辑表单数据
+  const [formData, setFormData] = useState<ProfileData>({ ...profile });
+
+  // 头像上传相关
+  const [uploading, setUploading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  // 获取用户资料
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+
+      // 从 profiles 表获取用户资料（如果还没有这个表，需要创建）
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user?.id)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 表示没有找到记录
+        console.error("获取资料失败:", error);
+      }
+
+      if (data) {
+        setProfile(data);
+        setFormData(data);
+        setAvatarPreview(data.avatar_url || "");
+      } else {
+        // 如果没有资料记录，用 user_metadata 初始化
+        const initialData = {
+          username: user?.user_metadata?.user_name || "",
+          full_name: user?.user_metadata?.full_name || "",
+          avatar_url: user?.user_metadata?.avatar_url || "",
+          bio: "",
+          website: "",
+          location: "",
+          updated_at: new Date().toISOString(),
+        };
+        setProfile(initialData);
+        setFormData(initialData);
+        setAvatarPreview(initialData.avatar_url);
+      }
+    } catch (error) {
+      console.error("获取资料失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 处理头像上传
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    if (!file.type.match(/image\/(jpeg|png|gif|webp)/)) {
+      alert("请上传图片文件 (JPEG, PNG, GIF, WEBP)");
+      return;
+    }
+
+    // 验证文件大小（最大 2MB）
+    if (file.size > 2 * 1024 * 1024) {
+      alert("图片大小不能超过 2MB");
+      return;
+    }
+
+    setAvatarFile(file);
+
+    // 创建预览URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 上传头像到 Supabase Storage
+  const uploadAvatar = async (): Promise<string | null> => {
+    if (!avatarFile || !user) return profile.avatar_url;
+
+    try {
+      setUploading(true);
+
+      // 生成文件名
+      const fileExt = avatarFile.name.split(".").pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // 上传文件
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, avatarFile);
+
+      if (uploadError) throw uploadError;
+
+      // 获取公共URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("头像上传失败:", error);
+      alert("头像上传失败");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 保存个人资料
+  const handleSave = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      // 先上传头像（如果有新文件）
+      let avatarUrl = profile.avatar_url;
+      if (avatarFile) {
+        const newAvatarUrl = await uploadAvatar();
+        if (newAvatarUrl) {
+          avatarUrl = newAvatarUrl;
+        }
+      }
+
+      // 准备要保存的数据
+      const profileData = {
+        id: user.id,
+        username: formData.username,
+        full_name: formData.full_name,
+        avatar_url: avatarUrl,
+        bio: formData.bio,
+        website: formData.website,
+        location: formData.location,
+        updated_at: new Date().toISOString(),
+      };
+
+      // 保存到 profiles 表
+      const { error } = await supabase.from("profiles").upsert(profileData);
+
+      if (error) throw error;
+
+      // 更新本地状态
+      setProfile({ ...profileData, username: formData.username });
+      setEditing(false);
+      setAvatarFile(null);
+
+      alert("资料保存成功");
+    } catch (error) {
+      console.error("保存失败:", error);
+      alert("保存失败，请重试");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 取消编辑
+  const handleCancel = () => {
+    setFormData({ ...profile });
+    setAvatarPreview(profile.avatar_url);
+    setAvatarFile(null);
+    setEditing(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* 返回链接 */}
+      <div className="mb-6">
+        <Link
+          to="/"
+          className="text-blue-500 hover:text-blue-600 inline-flex items-center gap-1"
+        >
+          <span>←</span> 返回首页
+        </Link>
+      </div>
+
+      {/* 标题和操作按钮 */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">个人资料</h1>
+        {!editing ? (
+          <button
+            onClick={() => setEditing(true)}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            编辑资料
+          </button>
+        ) : (
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancel}
+              className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || uploading}
+              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+            >
+              {saving || uploading ? "保存中..." : "保存修改"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 个人资料卡片 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div className="p-8">
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* 左侧：头像区域 */}
+            <div className="md:w-64 flex flex-col items-center">
+              <div className="relative group">
+                <img
+                  src={editing ? avatarPreview : profile.avatar_url}
+                  alt={profile.full_name || "用户头像"}
+                  className="w-48 h-48 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
+                  onError={(e) => {
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}&background=random&size=200`;
+                  }}
+                />
+
+                {editing && (
+                  <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    <span className="text-white text-sm">更换头像</span>
+                  </label>
+                )}
+              </div>
+
+              {uploading && (
+                <p className="mt-2 text-sm text-gray-500">上传中...</p>
+              )}
+            </div>
+
+            {/* 右侧：信息区域 */}
+            <div className="flex-1">
+              {!editing ? (
+                // 查看模式
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {profile.full_name || profile.username}
+                    </h2>
+                    {profile.username && (
+                      <p className="text-gray-500 dark:text-gray-400 mt-1">
+                        @{profile.username}
+                      </p>
+                    )}
+                  </div>
+
+                  {profile.bio && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        个人简介
+                      </h3>
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {profile.bio}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {profile.location && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          所在地
+                        </h3>
+                        <p className="text-gray-700 dark:text-gray-300">
+                          {profile.location}
+                        </p>
+                      </div>
+                    )}
+
+                    {profile.website && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          个人网站
+                        </h3>
+                        <a
+                          href={profile.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:text-blue-600"
+                        >
+                          {profile.website}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>📧 {user?.email}</span>
+                    </div>
+                    {profile.updated_at && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        最后更新:{" "}
+                        {new Date(profile.updated_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                // 编辑模式
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        用户名
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={(e) =>
+                          setFormData({ ...formData, username: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                        placeholder="用户名"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        全名
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.full_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            full_name: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                        placeholder="你的名字"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      邮箱
+                    </label>
+                    <input
+                      type="email"
+                      value={user?.email || ""}
+                      disabled
+                      className="w-full px-4 py-2 border rounded-lg bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">邮箱不可修改</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      个人简介
+                    </label>
+                    <textarea
+                      value={formData.bio}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bio: e.target.value })
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                      placeholder="介绍一下自己..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        所在地
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) =>
+                          setFormData({ ...formData, location: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                        placeholder="城市、国家"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        个人网站
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.website}
+                        onChange={(e) =>
+                          setFormData({ ...formData, website: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProfilePage;
+
+
+===== src/pages/admin/CategoryManager.tsx =====
+import React, { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  post_count: number;
+}
+
+const CategoryManager: React.FC = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .order("name");
+    setCategories(data || []);
+  };
+
+  const generateSlug = (name: string) => {
+    return name.toLowerCase().replace(/\s+/g, "-");
+  };
+
+  const addCategory = async () => {
+    if (!newName.trim()) return;
+
+    await supabase.from("categories").insert([
+      {
+        name: newName,
+        slug: generateSlug(newName),
+        description: newDescription,
+      },
+    ]);
+
+    setNewName("");
+    setNewDescription("");
+    fetchCategories();
+  };
+
+  const updateCategory = async (id: number) => {
+    await supabase
+      .from("categories")
+      .update({
+        name: editName,
+        slug: generateSlug(editName),
+        description: editDescription,
+      })
+      .eq("id", id);
+
+    setEditingId(null);
+    fetchCategories();
+  };
+
+  // 删除分类
+  const deleteCategory = async (id: number) => {
+    // 找到要删除的分类
+    const category = categories.find((c) => c.id === id);
+
+    // 检查是否有文章
+    if (category && category.post_count > 0) {
+      alert(
+        `无法删除：该分类下还有 ${category.post_count} 篇文章，请先移动或删除这些文章`,
+      );
+      return;
+    }
+
+    if (!window.confirm("确定要删除这个分类吗？")) return;
+
+    try {
+      const { error } = await supabase.from("categories").delete().eq("id", id);
+
+      if (error) throw error;
+
+      // 刷新列表
+      fetchCategories();
+    } catch (err) {
+      console.error("删除失败:", err);
+      alert("删除失败");
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4">
+      <h1 className="text-3xl font-bold mb-8">分类管理</h1>
+
+      {/* 新增分类表单 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-bold mb-4">新增分类</h2>
+        <div className="space-y-4">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="分类名称"
+            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
+          />
+          <input
+            type="text"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            placeholder="分类描述"
+            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
+          />
+          <button
+            onClick={addCategory}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            添加分类
+          </button>
+        </div>
+      </div>
+
+      {/* 分类列表 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+        <table className="min-w-full">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="px-6 py-3 text-left">名称</th>
+              <th className="px-6 py-3 text-left">描述</th>
+              <th className="px-6 py-3 text-left">文章数</th>
+              <th className="px-6 py-3 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map((cat) => (
+              <tr key={cat.id} className="border-t dark:border-gray-700">
+                {editingId === cat.id ? (
+                  // 编辑模式
+                  <>
+                    <td className="px-6 py-4">
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-2 py-1 border rounded"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <input
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        className="w-full px-2 py-1 border rounded"
+                      />
+                    </td>
+                    <td className="px-6 py-4">{cat.post_count}</td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      <button
+                        onClick={() => updateCategory(cat.id)}
+                        className="text-green-500 hover:text-green-700"
+                      >
+                        保存
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        取消
+                      </button>
+                    </td>
+                  </>
+                ) : (
+                  // 显示模式
+                  <>
+                    <td className="px-6 py-4">{cat.name}</td>
+                    <td className="px-6 py-4">{cat.description}</td>
+                    <td className="px-6 py-4">{cat.post_count}</td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditingId(cat.id);
+                          setEditName(cat.name);
+                          setEditDescription(cat.description || "");
+                        }}
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        onClick={() => deleteCategory(cat.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        删除
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default CategoryManager;
+
+
+===== src/pages/admin/Dashboard.tsx =====
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+
+interface Stats {
+  totalPosts: number;
+  totalViews: number;
+  totalComments: number;
+  publishedPosts: number;
+  draftPosts: number;
+  totalCategories: number;
+}
+
+interface RecentPost {
+  id: number;
+  title: string;
+  created_at: string;
+  view_count: number;
+  is_published: boolean;
+}
+
+interface CategoryStat {
+  name: string;
+  post_count: number;
+}
+
+const Dashboard: React.FC = () => {
+  const [stats, setStats] = useState<Stats>({
+    totalPosts: 0,
+    totalViews: 0,
+    totalComments: 0,
+    publishedPosts: 0,
+    draftPosts: 0,
+    totalCategories: 0,
+  });
+  const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
+  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+    fetchRecentPosts();
+    fetchCategoryStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      // 查询文章统计
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("view_count, is_published");
+
+      // 查询分类数量
+      const { count: categoriesCount } = await supabase
+        .from("categories")
+        .select("*", { count: "exact", head: true });
+
+      // 查询评论总数（如果有评论表）
+      const { count: commentsCount } = await supabase
+        .from("post_comments")
+        .select("*", { count: "exact", head: true });
+
+      if (posts) {
+        setStats({
+          totalPosts: posts.length,
+          totalViews: posts.reduce((sum, p) => sum + (p.view_count || 0), 0),
+          totalComments: commentsCount || 0,
+          publishedPosts: posts.filter((p) => p.is_published).length,
+          draftPosts: posts.filter((p) => !p.is_published).length,
+          totalCategories: categoriesCount || 0,
+        });
+      }
+    } catch (error) {
+      console.error("获取统计数据失败:", error);
+    }
+  };
+
+  const fetchRecentPosts = async () => {
+    const { data } = await supabase
+      .from("posts")
+      .select("id, title, created_at, view_count, is_published")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    setRecentPosts(data || []);
+  };
+
+  const fetchCategoryStats = async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("name, post_count")
+      .order("post_count", { ascending: false })
+      .limit(5);
+
+    setCategoryStats(data || []);
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4">
+      <h1 className="text-3xl font-bold mb-8">仪表盘</h1>
+
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* 总文章 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">总文章</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                {stats.totalPosts}
+              </p>
+            </div>
+            <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+              <svg
+                className="w-8 h-8 text-blue-600 dark:text-blue-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                />
+              </svg>
+            </div>
+          </div>
+          <div className="mt-4 flex gap-4 text-sm">
+            <span className="text-green-600">
+              已发布: {stats.publishedPosts}
+            </span>
+            <span className="text-yellow-600">草稿: {stats.draftPosts}</span>
+          </div>
+        </div>
+
+        {/* 总阅读量 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                总阅读量
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                {stats.totalViews.toLocaleString()}
+              </p>
+            </div>
+            <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
+              <svg
+                className="w-8 h-8 text-green-600 dark:text-green-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* 总评论 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">总评论</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                {stats.totalComments}
+              </p>
+            </div>
+            <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
+              <svg
+                className="w-8 h-8 text-purple-600 dark:text-purple-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* 全部分类 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                全部分类
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                {stats.totalCategories}
+              </p>
+            </div>
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
+              <svg
+                className="w-8 h-8 text-yellow-600 dark:text-yellow-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l5 5a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-5-5A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 图表区域 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 最近文章 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span>📝</span> 最近文章
+          </h2>
+          <div className="space-y-3">
+            {recentPosts.length > 0 ? (
+              recentPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <Link
+                      to={`/admin/posts/edit/${post.id}`}
+                      className="font-medium hover:text-blue-500"
+                    >
+                      {post.title}
+                    </Link>
+                    <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                      <span>
+                        {new Date(post.created_at).toLocaleDateString()}
+                      </span>
+                      <span>👁️ {post.view_count}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs ${
+                          post.is_published
+                            ? "bg-green-100 text-green-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {post.is_published ? "已发布" : "草稿"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 text-center py-4">暂无文章</p>
+            )}
+          </div>
+          <div className="mt-4 text-right">
+            <Link
+              to="/admin/posts"
+              className="text-blue-500 hover:text-blue-600 text-sm"
+            >
+              查看全部 →
+            </Link>
+          </div>
+        </div>
+
+        {/* 分类统计 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span>📊</span> 分类统计
+          </h2>
+          <div className="space-y-3">
+            {categoryStats.length > 0 ? (
+              categoryStats.map((cat) => (
+                <div
+                  key={cat.name}
+                  className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <span className="font-medium">{cat.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500">
+                      {cat.post_count} 篇文章
+                    </span>
+                    <div className="w-20 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full"
+                        style={{
+                          width: `${Math.min(100, (cat.post_count / Math.max(...categoryStats.map((c) => c.post_count))) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 text-center py-4">暂无分类</p>
+            )}
+          </div>
+          <div className="mt-4 text-right">
+            <Link
+              to="/admin/categories"
+              className="text-blue-500 hover:text-blue-600 text-sm"
+            >
+              管理分类 →
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* 快捷操作 */}
+      <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-bold mb-4">⚡ 快捷操作</h2>
+        <div className="flex flex-wrap gap-4">
+          <Link
+            to="/admin/posts/new"
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            写新文章
+          </Link>
+          <Link
+            to="/admin/categories"
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
+            管理分类
+          </Link>
+          <Link
+            to="/blog"
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+          >
+            查看博客
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+
+
+===== src/pages/admin/PostManager.tsx =====
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import type { Post } from "../../types/blog";
+
+const PostManager: React.FC = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    const { data } = await supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setPosts(data || []);
+    setLoading(false);
+  };
+
+  const deletePost = async (id: number) => {
+    if (!window.confirm("确定要删除这篇文章吗？")) return;
+
+    try {
+      // 1. 先获取文章的分类ID
+      const { data: post } = await supabase
+        .from("posts")
+        .select("category_id")
+        .eq("id", id)
+        .single();
+
+      // 2. 删除文章
+      const { error } = await supabase.from("posts").delete().eq("id", id);
+
+      if (error) throw error;
+
+      // 3. 如果文章有分类，分类文章数减1
+      if (post?.category_id) {
+        // 先查询当前值
+        const { data: category } = await supabase
+          .from("categories")
+          .select("post_count")
+          .eq("id", post.category_id)
+          .single();
+
+        if (category) {
+          await supabase
+            .from("categories")
+            .update({ post_count: Math.max(0, category.post_count - 1) })
+            .eq("id", post.category_id);
+        }
+      }
+
+      // 4. 刷新列表
+      fetchPosts();
+    } catch (err) {
+      console.error("删除失败:", err);
+      alert("删除失败");
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">文章管理</h1>
+        <Link
+          to="/admin/posts/new"
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        >
+          写新文章
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">加载中...</div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  标题
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  状态
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  发布时间
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  阅读量
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  操作
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {posts.map((post) => (
+                <tr key={post.id}>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium">{post.title}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        post.is_published
+                          ? "bg-green-100 text-green-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {post.is_published ? "已发布" : "草稿"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    {post.published_at
+                      ? new Date(post.published_at).toLocaleDateString()
+                      : "-"}
+                  </td>
+                  <td className="px-6 py-4 text-sm">{post.view_count}</td>
+                  <td className="px-6 py-4 text-right space-x-2">
+                    <Link
+                      to={`/admin/posts/edit/${post.id}`}
+                      className="text-blue-500 hover:text-blue-700"
+                    >
+                      编辑
+                    </Link>
+                    <button
+                      onClick={() => deletePost(post.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      删除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PostManager;
+
+
+===== src/pages/admin/SourceAnalysis.tsx =====
+import React, { useState, useEffect } from "react";
+import { getSourceStats } from "../../utils/visitLogger"; // 导入工具函数
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+
+interface SourceStats {
+  total: number;
+  direct: number;
+  search: number;
+  social: number;
+  external: number;
+  utm: {
+    google: number;
+    facebook: number;
+    twitter: number;
+    github: number;
+    other: number;
+  };
+  pages: Record<string, number>;
+  daily: Record<string, number>;
+}
+
+const COLORS = [
+  "#3b82f6",
+  "#ef4444",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+];
+
+const SourceAnalysis: React.FC = () => {
+  const [stats, setStats] = useState<SourceStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
+  const [view, setView] = useState<"overview" | "utm" | "pages">("overview");
+
+  useEffect(() => {
+    fetchStats();
+  }, [days]);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    const data = await getSourceStats(days); // 直接使用工具函数
+    setStats(data as SourceStats);
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return <div className="text-center py-12">暂无数据</div>;
+  }
+
+  // 准备图表数据
+  const sourceData = [
+    { name: "直接访问", value: stats.direct },
+    { name: "搜索引擎", value: stats.search },
+    { name: "社交媒体", value: stats.social },
+    { name: "外部链接", value: stats.external },
+  ].filter((item) => item.value > 0);
+
+  const utmData = [
+    { name: "Google", value: stats.utm.google },
+    { name: "Facebook", value: stats.utm.facebook },
+    { name: "Twitter", value: stats.utm.twitter },
+    { name: "GitHub", value: stats.utm.github },
+    { name: "其他", value: stats.utm.other },
+  ].filter((item) => item.value > 0);
+
+  const pageData = Object.entries(stats.pages)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
+
+  const dailyData = Object.entries(stats.daily)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* 头部和统计卡片保持不变 */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">访问来源分析</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setDays(7)}
+            className={`px-3 py-1 rounded-lg text-sm ${
+              days === 7 ? "bg-blue-500 text-white" : "bg-gray-100"
+            }`}
+          >
+            近7天
+          </button>
+          <button
+            onClick={() => setDays(30)}
+            className={`px-3 py-1 rounded-lg text-sm ${
+              days === 30 ? "bg-blue-500 text-white" : "bg-gray-100"
+            }`}
+          >
+            近30天
+          </button>
+          <button
+            onClick={() => setDays(90)}
+            className={`px-3 py-1 rounded-lg text-sm ${
+              days === 90 ? "bg-blue-500 text-white" : "bg-gray-100"
+            }`}
+          >
+            近90天
+          </button>
+        </div>
+      </div>
+
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div className="text-sm text-gray-500">总访问量</div>
+          <div className="text-3xl font-bold">{stats.total}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div className="text-sm text-gray-500">直接访问</div>
+          <div className="text-3xl font-bold text-blue-600">{stats.direct}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div className="text-sm text-gray-500">搜索引擎</div>
+          <div className="text-3xl font-bold text-green-600">
+            {stats.search}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div className="text-sm text-gray-500">社交媒体</div>
+          <div className="text-3xl font-bold text-purple-600">
+            {stats.social}
+          </div>
+        </div>
+      </div>
+
+      {/* 视图切换 */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setView("overview")}
+          className={`px-4 py-2 rounded-lg ${
+            view === "overview" ? "bg-blue-500 text-white" : "bg-gray-100"
+          }`}
+        >
+          来源概览
+        </button>
+        <button
+          onClick={() => setView("utm")}
+          className={`px-4 py-2 rounded-lg ${
+            view === "utm" ? "bg-blue-500 text-white" : "bg-gray-100"
+          }`}
+        >
+          UTM分析
+        </button>
+        <button
+          onClick={() => setView("pages")}
+          className={`px-4 py-2 rounded-lg ${
+            view === "pages" ? "bg-blue-500 text-white" : "bg-gray-100"
+          }`}
+        >
+          热门页面
+        </button>
+      </div>
+
+      {/* 图表区域 - 保持不变 */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        {view === "overview" && (
+          <>
+            <h2 className="text-xl font-bold mb-4">来源分布</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sourceData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(entry) => `${entry.name}: ${entry.value}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {sourceData.map((_entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </>
+        )}
+
+        {view === "utm" && utmData.length > 0 && (
+          <>
+            <h2 className="text-xl font-bold mb-4">UTM 来源分析</h2>
+            <div className="h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={utmData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="name" />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
+
+        {view === "pages" && (
+          <>
+            <h2 className="text-xl font-bold mb-4">热门页面 TOP 10</h2>
+            <div className="h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={pageData}
+                  layout="vertical"
+                  margin={{ left: 200 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="name" width={150} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default SourceAnalysis;
 
 
 ===== src/store/authStore.ts =====
@@ -2068,44 +5520,59 @@ export const useLikeStore = create<LikeState>((set, get) => ({
 }));
 
 ===== src/types/blog.ts =====
+/**
+ * 分类接口
+ * 对应数据库中的 categories 表
+ */
 export interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  post_count: number;
+  id: number;              // 分类唯一ID，主键
+  name: string;            // 分类名称（如：技术、生活、笔记）
+  slug: string;            // URL友好的唯一标识（如：tech、life）
+  description?: string;    // 分类描述（可选）
+  post_count: number;      // 该分类下的文章数量
 }
 
+/**
+ * 文章接口
+ * 对应数据库中的 posts 表
+ */
 export interface Post {
-  id: number;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt?: string;
-  cover_image?: string;
-  category?: Category;
-  tags: string[];
-  view_count: number;
-  like_count: number;
-  comment_count: number;
-  published_at: string;
-  created_at: string;
-  author?: {
-    name: string;
-    avatar?: string;
+  id: number;              // 文章唯一ID，主键
+  title: string;           // 文章标题
+  slug: string;            // URL友好的唯一标识（如：my-first-post）
+  content: string;         // 文章内容（Markdown格式）
+  excerpt?: string;        // 文章摘要（可选，不提供则自动截取内容）
+  cover_image?: string;    // 封面图片URL地址（可选）
+  category?: Category;     // 所属分类信息（关联categories表）
+  tags: string[];          // 文章标签数组（如：['React', 'TypeScript']）
+  view_count: number;      // 浏览次数
+  like_count: number;      // 点赞次数
+  comment_count: number;   // 评论次数
+  is_published: boolean;   // 🔴 新增：是否已发布（草稿/发布状态）
+  published_at: string;    // 实际发布时间（ISO格式时间字符串）
+  created_at: string;      // 创建时间（ISO格式时间字符串）
+  updated_at?: string;     // 🔴 新增：最后更新时间（可选）
+  user_id?: string;        // 🔴 新增：作者ID（可选，用于关联）
+  author?: {               // 作者信息（可选，关联auth.users表）
+    name: string;          // 作者名称（从user_metadata中获取）
+    avatar?: string;       // 作者头像URL（可选）
   };
 }
 
+/**
+ * 文章评论接口
+ * 对应数据库中的 post_comments 表
+ */
 export interface PostComment {
-  id: number;
-  post_id: number;
-  user_id: string;
-  content: string;
-  likes_count: number;
-  created_at: string;
-  user?: {
-    name: string;
-    avatar?: string;
+  id: number;              // 评论唯一ID，主键
+  post_id: number;         // 所属文章ID，关联posts表
+  user_id: string;         // 评论用户ID，关联auth.users表
+  content: string;         // 评论内容
+  likes_count: number;     // 评论点赞数
+  created_at: string;      // 评论时间（ISO格式时间字符串）
+  user?: {                 // 用户信息（可选，关联auth.users表）
+    name: string;          // 用户名称（从user_metadata中获取）
+    avatar?: string;       // 用户头像URL（可选）
   };
 }
 
@@ -2157,16 +5624,194 @@ export interface Message {
   user_id?: string;
   likes_count?: number;
   is_pinned?: boolean; 
+  reactions?: {  // 新增：留言的表情统计
+    [key: string]: number;  // 如 { '👍': 3, '❤️': 2 }
+  };
+  user_reactions?: string[]; // 新增：当前用户添加了哪些表情
 }
 
 export interface MessageWithLike extends Message {
   liked_by_user?: boolean;
 }
 
+// 添加表情反应类型
+export interface MessageReaction {
+  id: number;
+  message_id: number;
+  user_id: string;
+  reaction: string;
+  created_at: string;
+}
+
+===== src/types/vite-pwa.d.ts =====
+// src/vite-pwa.d.ts
+
+/// <reference types="vite-plugin-pwa/react" />
+
+declare module "virtual:pwa-register" {
+  import { RegisterSWOptions } from "vite-plugin-pwa";
+
+  export function registerSW(options?: RegisterSWOptions): (reloadPage?: boolean) => Promise<void>;
+}
+
+===== src/utils/visitLogger.ts =====
+import { supabase } from '../lib/supabase';
+
+interface VisitData {
+  path: string;
+  referer?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+}
+
+// 解析 UTM 参数
+const parseUTMParams = (url: string): Partial<VisitData> => {
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    const params = urlObj.searchParams;
+    
+    return {
+      utm_source: params.get('utm_source') || undefined,
+      utm_medium: params.get('utm_medium') || undefined,
+      utm_campaign: params.get('utm_campaign') || undefined,
+      utm_term: params.get('utm_term') || undefined,
+      utm_content: params.get('utm_content') || undefined,
+    };
+  } catch {
+    return {};
+  }
+};
+
+// 获取来源页面
+const getReferer = (): string | undefined => {
+  return document.referrer || undefined;
+};
+
+
+// 获取来源页面（测试代码）
+/*
+const getReferer = (): string | undefined => {
+  // return document.referrer || undefined;
+
+  // 测试用：根据 URL 参数动态返回
+  const url = new URL(window.location.href);
+  const testSource = url.searchParams.get('test_source');
+
+  if (testSource === 'google') return 'https://www.google.com';
+  if (testSource === 'facebook') return 'https://www.facebook.com';
+  if (testSource === 'github') return 'https://github.com';
+
+  return undefined;
+};
+*/
+
+
+// 记录访问
+export const logVisit = async () => {
+  try {
+    const currentPath = window.location.pathname + window.location.search;
+    const referer = getReferer();
+    const utmParams = parseUTMParams(window.location.href);
+
+    const visitData: VisitData = {
+      path: currentPath,
+      referer,
+      ...utmParams
+    };
+
+    // 异步记录，不阻塞页面加载
+    supabase
+        .from('visit_logs')
+        .insert([visitData])
+        .then(({ error }) => {
+          if (error) console.error('记录访问失败:', error);
+        });
+  } catch (error) {
+    console.error('记录访问出错:', error);
+  }
+};
+
+// 获取来源统计
+export const getSourceStats = async (days: number = 30) => {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  
+  const { data, error } = await supabase
+    .from('visit_logs')
+    .select('*')
+    .gte('visited_at', startDate.toISOString());
+  
+  if (error) {
+    console.error('获取统计失败:', error);
+    return null;
+  }
+  
+  return analyzeSources(data || []);
+};
+
+// 分析来源数据
+const analyzeSources = (logs: any[]) => {
+  const stats = {
+    total: logs.length,
+    direct: 0,           // 直接访问
+    search: 0,           // 搜索引擎
+    social: 0,           // 社交媒体
+    external: 0,         // 外部链接
+    utm: {
+      google: 0,
+      facebook: 0,
+      twitter: 0,
+      github: 0,
+      other: 0
+    },
+    pages: {} as Record<string, number>,
+    daily: {} as Record<string, number>
+  };
+
+  logs.forEach(log => {
+    // 按天统计
+    const day = log.visited_at.split('T')[0];
+    stats.daily[day] = (stats.daily[day] || 0) + 1;
+
+    // 按页面统计
+    stats.pages[log.path] = (stats.pages[log.path] || 0) + 1;
+
+    // 分析来源
+    // 分析来源（不统计 UTM）
+    if (!log.referer) {
+      stats.direct++;
+    } else if (log.referer.includes('google.com')) {
+      stats.search++;
+    } else if (log.referer.includes('facebook.com')) {
+      stats.social++;
+    } else if (log.referer.includes('twitter.com')) {
+      stats.social++;
+    } else if (log.referer.includes('github.com')) {
+      stats.external++;
+    } else {
+      stats.external++;
+    }
+
+    // 单独统计 UTM
+    if (log.utm_source) {
+      if (log.utm_source === 'google') stats.utm.google++;
+      else if (log.utm_source === 'facebook') stats.utm.facebook++;
+      else if (log.utm_source === 'twitter') stats.utm.twitter++;
+      else if (log.utm_source === 'github') stats.utm.github++;
+      else stats.utm.other++;
+    }
+  });
+
+  return stats;
+};
+
 ===== tailwind.config.js =====
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class', // ✅ 确保是 class 模式
+  darkMode: "class", // ✅ 确保是 class 模式
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
@@ -2184,9 +5829,65 @@ export default {
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { VitePWA } from 'vite-plugin-pwa'
+
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate', // 自动更新 Service Worker
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'], // 需要缓存的静态资源
+      manifest: {
+        name: '我的个人博客', // 应用全名
+        short_name: 'MyBlog', // 应用短名（显示在桌面上）
+        description: '一个基于 React 和 Supabase 的个人博客系统',
+        theme_color: '#ffffff', // 浏览器地址栏颜色
+        background_color: '#ffffff', // 启动页背景色
+        display: 'standalone', // 隐藏浏览器地址栏，像原生App
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: 'pwa-192x192.png', // 确保你在 public 文件夹下有这些图片
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable' // 支持安卓自适应图标
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'], // 缓存的文件类型
+        // 策略配置：针对 API 请求使用网络优先，静态资源使用缓存优先
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i, // 缓存 Supabase 的图片或资源
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-assets',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30天
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      }
+    })
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

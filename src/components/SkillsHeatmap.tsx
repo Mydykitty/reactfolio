@@ -208,7 +208,12 @@ const SkillsHeatmap: React.FC = () => {
                     ? "#ffffff"
                     : "#000000",
                 }}
-                formatter={(value: number) => [`${value}%`, "熟练度"]}
+                formatter={(value: number | undefined) => {
+                  if (value === undefined || value === null) {
+                    return ["0%", "熟练度"]; // 或者返回 ["-", "熟练度"]
+                  }
+                  return [`${value}%`, "熟练度"];
+                }}
               />
               <Bar
                 dataKey="value"

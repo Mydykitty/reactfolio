@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useRef} from "react";
+import React, { useState, useEffect, lazy, Suspense, useRef } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"; // 添加 useLocation
 import Header from "./components/Header";
 import About from "./components/About";
@@ -70,7 +70,7 @@ const about: AboutInfo = {
 // 路由监听组件
 const RouteListener: React.FC = () => {
   const location = useLocation();
-  const lastLoggedRef = useRef({ path: '', time: 0 });
+  const lastLoggedRef = useRef({ path: "", time: 0 });
 
   useEffect(() => {
     const currentPath = location.pathname + location.search;
@@ -78,8 +78,8 @@ const RouteListener: React.FC = () => {
 
     // 5秒内相同路径不重复记录
     if (
-        lastLoggedRef.current.path !== currentPath ||
-        now - lastLoggedRef.current.time > 5000
+      lastLoggedRef.current.path !== currentPath ||
+      now - lastLoggedRef.current.time > 5000
     ) {
       lastLoggedRef.current = { path: currentPath, time: now };
       logVisit();

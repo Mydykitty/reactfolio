@@ -7,7 +7,7 @@ import {
 
 interface CodeBlockProps {
   className?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const CodeBlock: React.FC<CodeBlockProps> = ({ className, children }) => {
