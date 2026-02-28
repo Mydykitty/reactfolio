@@ -1,0 +1,76 @@
+{
+  "common": {
+    "home": "首页",
+    "blog": "博客",
+    "profile": "个人资料",
+    "admin": "管理后台",
+    "login": "登录",
+    "logout": "退出",
+    "loading": "加载中...",
+    "back": "返回"
+  },
+  "header": {
+    "name": "张三",
+    "title": "前端开发工程师"
+  },
+  "about": {
+    "title": "关于我",
+    "bio": "前端开发工程师，热爱 React 和 TypeScript，喜欢制作简洁美观的网页。"
+  },
+  "skills": {
+    "title": "技能栈"
+  },
+  "projects": {
+    "title": "项目",
+    "all": "全部"
+  },
+  "contact": {
+    "title": "联系我"
+  },
+  "guestbook": {
+    "title": "访客留言板",
+    "total": "共 {{count}} 条留言",
+    "placeholder": "说点什么...",
+    "submit": "发布留言",
+    "loginRequired": "请先登录后再留言",
+    "loadMore": "加载更多留言",
+    "empty": "还没有留言，来当第一个访客吧！ ✨"
+  },
+  "blog": {
+    "title": "博客文章",
+    "search": "搜索文章标题或内容...",
+    "found": "找到 {{count}} 篇包含 \"{{query}}\" 的文章",
+    "notFound": "没有找到相关文章",
+    "empty": "暂无文章",
+    "backToList": "← 返回博客列表",
+    "views": "阅读",
+    "likes": "点赞",
+    "comments": "评论"
+  },
+  "profile": {
+    "title": "个人资料",
+    "edit": "编辑资料",
+    "save": "保存修改",
+    "cancel": "取消",
+    "username": "用户名",
+    "fullName": "全名",
+    "email": "邮箱",
+    "bio": "个人简介",
+    "location": "所在地",
+    "website": "个人网站",
+    "avatar": "头像",
+    "changeAvatar": "更换头像",
+    "emailUnchangeable": "邮箱不可修改"
+  },
+  "admin": {
+    "dashboard": "仪表盘",
+    "posts": "文章管理",
+    "categories": "分类管理",
+    "sources": "来源分析",
+    "newPost": "写新文章",
+    "editPost": "编辑文章",
+    "delete": "删除",
+    "publish": "发布",
+    "draft": "草稿"
+  }
+}

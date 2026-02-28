@@ -1,0 +1,76 @@
+{
+  "common": {
+    "home": "Home",
+    "blog": "Blog",
+    "profile": "Profile",
+    "admin": "Admin",
+    "login": "Login",
+    "logout": "Logout",
+    "loading": "Loading...",
+    "back": "Back"
+  },
+  "header": {
+    "name": "Zhang San",
+    "title": "Frontend Developer"
+  },
+  "about": {
+    "title": "About Me",
+    "bio": "Frontend developer passionate about React and TypeScript, loves creating clean and beautiful websites."
+  },
+  "skills": {
+    "title": "Skills"
+  },
+  "projects": {
+    "title": "Projects",
+    "all": "All"
+  },
+  "contact": {
+    "title": "Contact Me"
+  },
+  "guestbook": {
+    "title": "Guestbook",
+    "total": "{{count}} messages",
+    "placeholder": "Say something...",
+    "submit": "Post",
+    "loginRequired": "Please login to leave a message",
+    "loadMore": "Load more",
+    "empty": "No messages yet. Be the first! ✨"
+  },
+  "blog": {
+    "title": "Blog",
+    "search": "Search articles...",
+    "found": "Found {{count}} articles matching \"{{query}}\"",
+    "notFound": "No articles found",
+    "empty": "No articles yet",
+    "backToList": "← Back to blog",
+    "views": "views",
+    "likes": "likes",
+    "comments": "comments"
+  },
+  "profile": {
+    "title": "Profile",
+    "edit": "Edit Profile",
+    "save": "Save Changes",
+    "cancel": "Cancel",
+    "username": "Username",
+    "fullName": "Full Name",
+    "email": "Email",
+    "bio": "Bio",
+    "location": "Location",
+    "website": "Website",
+    "avatar": "Avatar",
+    "changeAvatar": "Change Avatar",
+    "emailUnchangeable": "Email cannot be changed"
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "posts": "Posts",
+    "categories": "Categories",
+    "sources": "Sources",
+    "newPost": "New Post",
+    "editPost": "Edit Post",
+    "delete": "Delete",
+    "publish": "Publish",
+    "draft": "Draft"
+  }
+}

@@ -82,6 +82,8 @@ npm install d3 d3-cloud
 
 npm install --save-dev @types/d3 @types/d3-cloud
 
+npm install i18next react-i18next i18next-browser-languagedetector
+
 
 Settings/Developer settings/ReactFolio
 

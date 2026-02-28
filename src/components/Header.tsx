@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"; // 添加 Link 导入
 import { useAuthStore } from "../store/authStore"; // 导入 auth store
 import Typewriter from "./Typewriter";
 import LazyImage from "./common/LazyImage"; // 导入 LazyImage 组件
+import { useTranslation } from "react-i18next";
 interface HeaderProps {
   name: string;
   title: string;
@@ -10,6 +11,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ name, title }) => {
   const { user } = useAuthStore(); // 获取当前用户
+  const { t } = useTranslation();
 
   return (
     <header className="text-center py-8 bg-white dark:bg-gray-900 transition-colors duration-300 relative">
@@ -20,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ name, title }) => {
           to="/blog"
           className="text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors px-3 py-1 text-sm"
         >
-          博客
+          {t("common.blog")}
         </Link>
 
         {/* 个人资料链接（仅登录用户可见） */}
