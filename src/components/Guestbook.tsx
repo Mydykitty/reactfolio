@@ -6,18 +6,18 @@ import { useLikeStore } from "../store/likeStore";
 import type { MessageWithLike } from "../types";
 import GuestbookMessage from "./GuestbookMessage";
 import GuestbookWordCloud from "./GuestbookWordCloud";
-import MentionInput from "./MentionInput"; // 新增：导入提及输入组件
+import MentionInput from "./MentionInput";
 
 const PAGE_SIZE = 10;
 
-// 新增：解析提及的用户名
+// 解析提及的用户名
 const parseMentions = (content: string): string[] => {
-    const mentionRegex = /@([a-zA-Z0-9_\u4e00-\u9fa5]+)/g; // 支持中文用户名
+    const mentionRegex = /@([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
     const matches = content.match(mentionRegex) || [];
-    return matches.map(m => m.slice(1)); // 去掉@符号
+    return matches.map(m => m.slice(1));
 };
 
-// 新增：高亮显示提及的文本
+// 高亮显示提及的文本
 export const highlightMentions = (content: string): React.ReactNode => {
     const mentionRegex = /(@[a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
     const parts = content.split(mentionRegex);
@@ -26,8 +26,8 @@ export const highlightMentions = (content: string): React.ReactNode => {
         if (part.startsWith('@')) {
             return (
                 <span key={index} className="text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/30 px-1 rounded">
-          {part}
-        </span>
+                    {part}
+                </span>
             );
         }
         return part;
@@ -44,17 +44,17 @@ const Guestbook = () => {
     const [showWordCloud, setShowWordCloud] = useState(false);
 
     const user = useAuthStore((state) => state.user);
-    const { likedMessages, fetchUserLikes, toggleLike } = useLikeStore();
+    // 🔴 修改1：移除未使用的 likedMessages
+    const { fetchUserLikes, toggleLike } = useLikeStore();
 
     const fetchingRef = useRef(false);
 
-    // 新增：检查URL参数，滚动到指定留言
+    // 检查URL参数，滚动到指定留言
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const messageId = params.get('message');
 
         if (messageId) {
-            // 等待留言加载完成后滚动
             setTimeout(() => {
                 const element = document.getElementById(`message-${messageId}`);
                 if (element) {
@@ -80,13 +80,13 @@ const Guestbook = () => {
         const { data, error } = await supabase
             .from("messages")
             .select(`
-        *,
-        profiles!inner(
-          username,
-          avatar_url,
-          full_name
-        )
-      `)
+                *,
+                profiles!inner(
+                    username,
+                    avatar_url,
+                    full_name
+                )
+            `)
             .order("is_pinned", { ascending: false })
             .order("created_at", { ascending: false })
             .range(from, to);
@@ -103,7 +103,6 @@ const Guestbook = () => {
             const messagesWithLike = data.map((msg) => ({
                 ...msg,
                 liked_by_user: currentLikedMessages.has(msg.id),
-                // 合并profiles数据
                 name: msg.profiles?.username || msg.name,
                 avatar_url: msg.profiles?.avatar_url || msg.avatar_url,
             }));
@@ -144,7 +143,6 @@ const Guestbook = () => {
         }
     }, [page]);
 
-    // 修改：提交留言，添加提及功能
     const submitMessage = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -157,14 +155,12 @@ const Guestbook = () => {
 
         setLoading(true);
 
-        // 先获取用户资料
         const { data: profile } = await supabase
             .from('profiles')
             .select('username, avatar_url')
             .eq('id', user.id)
             .single();
 
-        // 插入留言
         const { error, data } = await supabase
             .from("messages")
             .insert([
@@ -177,29 +173,26 @@ const Guestbook = () => {
                 },
             ])
             .select(`
-        *,
-        profiles!inner(
-          username,
-          avatar_url,
-          full_name
-        )
-      `)
+                *,
+                profiles!inner(
+                    username,
+                    avatar_url,
+                    full_name
+                )
+            `)
             .single();
 
         if (!error && data) {
-            // 解析并保存提及
             const mentionedUsernames = parseMentions(content);
 
             if (mentionedUsernames.length > 0) {
-                // 查询这些用户名对应的用户ID（排除自己）
                 const { data: users } = await supabase
                     .from('profiles')
                     .select('id, username')
                     .in('username', mentionedUsernames)
-                    .neq('id', user.id); // 不能提及自己
+                    .neq('id', user.id);
 
                 if (users && users.length > 0) {
-                    // 创建提及记录
                     const mentions = users.map(u => ({
                         message_id: data.id,
                         mentioned_user_id: u.id,
@@ -213,13 +206,11 @@ const Guestbook = () => {
                     if (mentionError) {
                         console.error('保存提及失败:', mentionError);
                     } else {
-                        // 显示提示
                         console.log(`成功提及 ${users.length} 位用户`);
                     }
                 }
             }
 
-            // 添加新留言到列表
             const newMessage = {
                 ...data,
                 liked_by_user: false,
@@ -229,8 +220,6 @@ const Guestbook = () => {
 
             setMessages(prev => [newMessage, ...prev]);
             setContent("");
-
-            // 更新总数
             setTotal(prev => prev + 1);
         }
         setLoading(false);
@@ -291,13 +280,11 @@ const Guestbook = () => {
         if (!user) return;
 
         try {
-            // 先删除相关的提及记录
             await supabase
                 .from('mentions')
                 .delete()
                 .eq('message_id', messageId);
 
-            // 再删除留言
             const { error } = await supabase
                 .from("messages")
                 .delete()
@@ -360,11 +347,10 @@ const Guestbook = () => {
                     💬 访客留言板
                 </h2>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-          共 {total} 条留言
-        </span>
+                    共 {total} 条留言
+                </span>
             </div>
 
-            {/* 留言表单 - 使用MentionInput */}
             {user ? (
                 <form onSubmit={submitMessage} className="mb-8">
                     <div className="flex gap-3">
@@ -384,7 +370,6 @@ const Guestbook = () => {
                                 disabled={loading}
                             />
 
-                            {/* 提示信息 */}
                             <div className="flex justify-between items-center mt-2">
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
                                     💡 输入 @ 后跟用户名可提及他人
@@ -406,7 +391,6 @@ const Guestbook = () => {
                 </div>
             )}
 
-            {/* 词云开关 */}
             <div className="mb-8">
                 <button
                     onClick={() => setShowWordCloud(!showWordCloud)}
@@ -419,7 +403,6 @@ const Guestbook = () => {
                 {showWordCloud && <GuestbookWordCloud />}
             </div>
 
-            {/* 留言列表 */}
             <div className="space-y-4">
                 {messages.map((msg) => (
                     <GuestbookMessage
@@ -430,11 +413,10 @@ const Guestbook = () => {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onTogglePin={handleTogglePin}
-                        highlightMentions={highlightMentions} // 新增：传递高亮函数
+                        // 🔴 修改2：移除 highlightMentions prop
                     />
                 ))}
 
-                {/* 加载更多 */}
                 {hasMore && (
                     <div className="text-center pt-4">
                         <button

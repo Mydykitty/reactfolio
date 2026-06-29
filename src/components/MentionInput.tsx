@@ -14,37 +14,34 @@ interface MentionInputProps {
     onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
-    onSubmit?: () => void;
+    // 🔴 修改3：移除 onSubmit prop（未使用）
 }
 
 const MentionInput: React.FC<MentionInputProps> = ({
-                                                       value,
-                                                       onChange,
-                                                       placeholder,
-                                                       disabled,
-                                                       onSubmit
-                                                   }) => {
+    value,
+    onChange,
+    placeholder,
+    disabled,
+}) => {
     const [mentionUsers, setMentionUsers] = useState<User[]>([]);
     const [mentionIndex, setMentionIndex] = useState<number | null>(null);
     const [cursorPosition, setCursorPosition] = useState(0);
     const [showMentionList, setShowMentionList] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    // 🔴 修改4：移除未使用的 searchQuery 状态
+    // const [searchQuery, setSearchQuery] = useState('');
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
 
     // 检测@符号
     const checkForMention = (text: string, pos: number) => {
-        // 找到光标前的最后一个@
         const textBeforeCursor = text.slice(0, pos);
         const atIndex = textBeforeCursor.lastIndexOf('@');
 
         if (atIndex === -1) return null;
 
-        // 检查@后面是否有空格或已经是单词结束
         const afterAt = textBeforeCursor.slice(atIndex + 1);
 
-        // 如果@后面有空格，或者@是最后一个字符，则不是有效的提及
         if (afterAt.includes(' ') || afterAt.length === 0) {
             return null;
         }
@@ -63,13 +60,12 @@ const MentionInput: React.FC<MentionInputProps> = ({
         onChange(newValue);
         setCursorPosition(pos);
 
-        // 检测@提及
         const mention = checkForMention(newValue, pos);
 
         if (mention) {
             setShowMentionList(true);
             setMentionIndex(mention.index);
-            setSearchQuery(mention.query);
+            // setSearchQuery(mention.query); // 已移除
             searchUsers(mention.query);
         } else {
             setShowMentionList(false);
@@ -79,7 +75,6 @@ const MentionInput: React.FC<MentionInputProps> = ({
     // 搜索用户
     const searchUsers = async (query: string) => {
         if (!query) {
-            // 如果没有查询词，显示最近活跃的用户
             const { data } = await supabase
                 .from('profiles')
                 .select('id, username, avatar_url, full_name')
@@ -102,7 +97,6 @@ const MentionInput: React.FC<MentionInputProps> = ({
     const selectUser = (user: User) => {
         if (mentionIndex === null) return;
 
-        // 构建新的文本
         const beforeMention = value.slice(0, mentionIndex);
         const afterMention = value.slice(cursorPosition);
         const mentionText = `@${user.username} `;
@@ -112,7 +106,6 @@ const MentionInput: React.FC<MentionInputProps> = ({
 
         setShowMentionList(false);
 
-        // 设置光标位置到提及后面
         setTimeout(() => {
             if (inputRef.current) {
                 const newPos = beforeMention.length + mentionText.length;
@@ -172,18 +165,17 @@ const MentionInput: React.FC<MentionInputProps> = ({
 
     return (
         <div className="relative">
-      <textarea
-          ref={inputRef}
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={3}
-          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
-      />
+            <textarea
+                ref={inputRef}
+                value={value}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                disabled={disabled}
+                rows={3}
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+            />
 
-            {/* 提及列表 */}
             {showMentionList && mentionUsers.length > 0 && (
                 <div
                     ref={listRef}
