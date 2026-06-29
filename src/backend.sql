@@ -1,133 +1,354 @@
 -- =====================================================
--- 留言板系统表结构
+-- 1. 创建 profiles 表
 -- =====================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+                                               id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    username TEXT UNIQUE,
+    full_name TEXT,
+    avatar_url TEXT,
+    bio TEXT,
+    website TEXT,
+    location TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- 创建留言表
-CREATE TABLE messages (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    content TEXT NOT NULL,
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+CREATE POLICY "Users can view own profile" ON public.profiles
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+-- =====================================================
+-- 2. 创建 messages 表（关键步骤）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.messages (
+                                               id BIGSERIAL PRIMARY KEY,
+                                               name TEXT NOT NULL,
+                                               content TEXT NOT NULL,
+                                               created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    avatar_url TEXT,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    likes_count INTEGER DEFAULT 0
+    );
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_is_pinned ON messages(is_pinned DESC);
+
+-- 开启 RLS
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- 创建 RLS 策略
+DROP POLICY IF EXISTS "所有人可查看留言" ON public.messages;
+CREATE POLICY "所有人可查看留言" ON public.messages
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "仅登录用户可发布留言" ON public.messages;
+CREATE POLICY "仅登录用户可发布留言" ON public.messages
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "用户可更新自己的留言" ON public.messages;
+CREATE POLICY "用户可更新自己的留言" ON public.messages
+    FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "用户可删除自己的留言" ON public.messages;
+CREATE POLICY "用户可删除自己的留言" ON public.messages
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- =====================================================
+-- 3. 创建 message_likes 表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.message_likes (
+                                                    id BIGSERIAL PRIMARY KEY,
+                                                    message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    user_id UUID REFERENCES auth.users(id),           -- 用户ID
-    user_name TEXT,                                    -- 用户名（GitHub用户名）
-    avatar_url TEXT,                                   -- 头像URL
-    is_pinned BOOLEAN DEFAULT FALSE                    -- 是否置顶
-);
+    UNIQUE(message_id, user_id)
+    );
 
--- 创建索引以提高查询性能
-CREATE INDEX idx_messages_user_id ON messages(user_id);
-CREATE INDEX idx_messages_created_at ON messages(desc);
-CREATE INDEX idx_messages_is_pinned ON messages(is_pinned DESC);
+CREATE INDEX IF NOT EXISTS idx_message_likes_message ON message_likes(message_id);
+CREATE INDEX IF NOT EXISTS idx_message_likes_user ON message_likes(user_id);
 
--- 设置留言表行级安全策略
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.message_likes ENABLE ROW LEVEL SECURITY;
 
--- 创建留言表访问策略
-CREATE POLICY "所有人可查看留言" 
-    ON messages FOR SELECT 
-    USING (true);
+DROP POLICY IF EXISTS "所有人可查看点赞" ON public.message_likes;
+CREATE POLICY "所有人可查看点赞" ON public.message_likes
+    FOR SELECT USING (true);
 
-CREATE POLICY "仅登录用户可发布留言" 
-    ON messages FOR INSERT 
-    WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "登录用户可点赞" ON public.message_likes;
+CREATE POLICY "登录用户可点赞" ON public.message_likes
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "用户可更新自己的留言" 
-    ON messages FOR UPDATE
-    USING (auth.uid() = user_id);
-
-CREATE POLICY "用户可删除自己的留言" 
-    ON messages FOR DELETE
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "用户可取消自己的点赞" ON public.message_likes;
+CREATE POLICY "用户可取消自己的点赞" ON public.message_likes
+    FOR DELETE USING (auth.uid() = user_id);
 
 -- =====================================================
--- 博客系统表结构
+-- 4. 创建点赞数自动更新触发器
 -- =====================================================
+DROP TRIGGER IF EXISTS trigger_update_message_likes ON public.message_likes;
+DROP FUNCTION IF EXISTS public.update_message_likes_count() CASCADE;
 
--- 1. 分类表
-CREATE TABLE categories (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,              -- 分类名称
-    slug VARCHAR(50) UNIQUE NOT NULL,              -- URL友好的分类标识
-    description VARCHAR(200),                       -- 分类描述
-    post_count INTEGER DEFAULT 0,                   -- 文章数量
-    created_at TIMESTAMP DEFAULT NOW()              -- 创建时间
-);
+CREATE OR REPLACE FUNCTION public.update_message_likes_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+UPDATE messages
+SET likes_count = likes_count + 1
+WHERE id = NEW.message_id;
+RETURN NEW;
+ELSIF TG_OP = 'DELETE' THEN
+UPDATE messages
+SET likes_count = GREATEST(0, likes_count - 1)
+WHERE id = OLD.message_id;
+RETURN OLD;
+END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2. 文章表
-CREATE TABLE posts (
-    id BIGSERIAL PRIMARY KEY,
-    title VARCHAR(200) NOT NULL,                    -- 文章标题
-    slug VARCHAR(200) UNIQUE NOT NULL,              -- URL友好的唯一标识
-    content TEXT NOT NULL,                           -- 文章内容（Markdown）
-    excerpt VARCHAR(300),                            -- 文章摘要
-    cover_image VARCHAR(500),                        -- 封面图片URL
-    category_id BIGINT REFERENCES categories(id),    -- 所属分类
-    tags TEXT[],                                     -- 文章标签数组
-    view_count INTEGER DEFAULT 0,                    -- 浏览次数
-    like_count INTEGER DEFAULT 0,                    -- 点赞次数
-    comment_count INTEGER DEFAULT 0,                 -- 评论次数
-    is_published BOOLEAN DEFAULT false,              -- 是否已发布
-    published_at TIMESTAMP,                           -- 实际发布时间
-    created_at TIMESTAMP DEFAULT NOW(),               -- 创建时间
-    updated_at TIMESTAMP DEFAULT NOW(),               -- 更新时间
-    user_id UUID REFERENCES auth.users(id)           -- 作者ID
-);
+CREATE TRIGGER trigger_update_message_likes
+    AFTER INSERT OR DELETE ON public.message_likes
+    FOR EACH ROW EXECUTE FUNCTION public.update_message_likes_count();
 
--- 3. 文章评论表
-CREATE TABLE post_comments (
-    id BIGSERIAL PRIMARY KEY,
-    post_id BIGINT REFERENCES posts(id) ON DELETE CASCADE,  -- 所属文章
-    user_id UUID REFERENCES auth.users(id),                  -- 评论用户ID
-    content TEXT NOT NULL,                                   -- 评论内容
-    likes_count INTEGER DEFAULT 0,                           -- 评论点赞数
-    created_at TIMESTAMP DEFAULT NOW()                       -- 评论时间
-);
+-- =====================================================
+-- 5. 创建用户注册自动创建 profile 的触发器
+-- =====================================================
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 
--- 4. 文章点赞表
-CREATE TABLE post_likes (
-    id BIGSERIAL PRIMARY KEY,
-    post_id BIGINT REFERENCES posts(id) ON DELETE CASCADE,  -- 被点赞的文章
-    user_id UUID REFERENCES auth.users(id),                  -- 点赞用户
-    created_at TIMESTAMP DEFAULT NOW(),                      -- 点赞时间
-    UNIQUE(post_id, user_id)                                 -- 防止重复点赞
-);
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+INSERT INTO public.profiles (id, username, full_name, avatar_url)
+VALUES (
+           NEW.id,
+           COALESCE(NEW.raw_user_meta_data->>'user_name', NEW.raw_user_meta_data->>'preferred_username', NEW.email),
+           COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'user_name'),
+           COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'picture')
+       )
+    ON CONFLICT (id) DO UPDATE
+                            SET
+                                username = EXCLUDED.username,
+                            full_name = EXCLUDED.full_name,
+                            avatar_url = EXCLUDED.avatar_url;
 
--- 创建博客表相关索引
-CREATE INDEX idx_posts_slug ON posts(slug);
-CREATE INDEX idx_posts_category ON posts(category_id);
-CREATE INDEX idx_posts_published ON posts(is_published, published_at DESC);
-CREATE INDEX idx_posts_created ON posts(created_at DESC);
-CREATE INDEX idx_post_comments_post ON post_comments(post_id);
-CREATE INDEX idx_post_likes_post ON post_likes(post_id);
+RETURN NEW;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE WARNING 'Failed to create profile for user %: %', NEW.id, SQLERRM;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 设置博客表行级安全策略
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_user();
 
--- 创建博客表访问策略
-CREATE POLICY "所有人可查看分类" ON categories FOR SELECT USING (true);
-CREATE POLICY "仅管理员可管理分类" ON categories FOR ALL USING (auth.role() = 'authenticated');
+-- =====================================================
+-- 6. 为当前用户创建 profile
+-- =====================================================
+INSERT INTO public.profiles (id, username, full_name, avatar_url)
+VALUES (
+           '92837332-7eb7-4875-9fb6-b8201c8d273d',
+           'Mydykitty',
+           'Mydykitty',
+           'https://avatars.githubusercontent.com/u/5461820?v=4'
+       )
+    ON CONFLICT (id) DO UPDATE
+                            SET
+                                username = EXCLUDED.username,
+                            full_name = EXCLUDED.full_name,
+                            avatar_url = EXCLUDED.avatar_url;
 
-CREATE POLICY "所有人可查看已发布文章" ON posts FOR SELECT 
-    USING (is_published = true OR auth.uid() = user_id);
-CREATE POLICY "仅作者可管理文章" ON posts FOR INSERT 
-    WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "作者可更新自己的文章" ON posts FOR UPDATE 
-    USING (auth.uid() = user_id);
-CREATE POLICY "作者可删除自己的文章" ON posts FOR DELETE 
-    USING (auth.uid() = user_id);
 
-CREATE POLICY "所有人可查看评论" ON post_comments FOR SELECT USING (true);
-CREATE POLICY "登录用户可评论" ON post_comments FOR INSERT 
-    WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "用户可更新自己的评论" ON post_comments FOR UPDATE 
-    USING (auth.uid() = user_id);
-CREATE POLICY "用户可删除自己的评论" ON post_comments FOR DELETE 
-    USING (auth.uid() = user_id);
+-- =====================================================
+-- 1. 创建 message_reactions 表（留言表情回复）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.message_reactions (
+                                                        id BIGSERIAL PRIMARY KEY,
+                                                        message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    reaction TEXT NOT NULL,  -- 存储 👍 ❤️ 😂 等表情
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(message_id, user_id, reaction)  -- 同一用户对同一留言只能有一种表情
+    );
 
-CREATE POLICY "登录用户可点赞" ON post_likes FOR INSERT 
-    WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "用户可取消自己的点赞" ON post_likes FOR DELETE 
-    USING (auth.uid() = user_id);
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_message_reactions_message ON message_reactions(message_id);
+CREATE INDEX IF NOT EXISTS idx_message_reactions_user ON message_reactions(user_id);
+
+-- 开启 RLS
+ALTER TABLE public.message_reactions ENABLE ROW LEVEL SECURITY;
+
+-- 创建 RLS 策略
+DROP POLICY IF EXISTS "所有人可查看表情" ON public.message_reactions;
+CREATE POLICY "所有人可查看表情" ON public.message_reactions
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "登录用户可添加表情" ON public.message_reactions;
+CREATE POLICY "登录用户可添加表情" ON public.message_reactions
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "用户可删除自己的表情" ON public.message_reactions;
+CREATE POLICY "用户可删除自己的表情" ON public.message_reactions
+    FOR DELETE USING (auth.uid() = user_id);
+
+
+-- =====================================================
+-- 1. 创建 categories 表（博客分类）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.categories (
+                                                 id BIGSERIAL PRIMARY KEY,
+                                                 name VARCHAR(50) UNIQUE NOT NULL,
+    slug VARCHAR(50) UNIQUE NOT NULL,
+    description VARCHAR(200),
+    post_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "所有人可查看分类" ON public.categories;
+CREATE POLICY "所有人可查看分类" ON public.categories
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "仅管理员可管理分类" ON public.categories;
+CREATE POLICY "仅管理员可管理分类" ON public.categories
+    FOR ALL USING (auth.role() = 'authenticated');
+
+-- =====================================================
+-- 2. 创建 posts 表（博客文章）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.posts (
+                                            id BIGSERIAL PRIMARY KEY,
+                                            title VARCHAR(200) NOT NULL,
+    slug VARCHAR(200) UNIQUE NOT NULL,
+    content TEXT NOT NULL,
+    excerpt VARCHAR(300),
+    cover_image VARCHAR(500),
+    category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL,
+    tags TEXT[],
+    view_count INTEGER DEFAULT 0,
+    like_count INTEGER DEFAULT 0,
+    comment_count INTEGER DEFAULT 0,
+    is_published BOOLEAN DEFAULT FALSE,
+    published_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL
+    );
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
+CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category_id);
+CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(is_published, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
+
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "所有人可查看已发布文章" ON public.posts;
+CREATE POLICY "所有人可查看已发布文章" ON public.posts
+    FOR SELECT USING (is_published = true OR auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "仅作者可管理文章" ON public.posts;
+CREATE POLICY "仅作者可管理文章" ON public.posts
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "作者可更新自己的文章" ON public.posts;
+CREATE POLICY "作者可更新自己的文章" ON public.posts
+    FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "作者可删除自己的文章" ON public.posts;
+CREATE POLICY "作者可删除自己的文章" ON public.posts
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- =====================================================
+-- 3. 创建 visit_logs 表（访问日志）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.visit_logs (
+                                                 id BIGSERIAL PRIMARY KEY,
+                                                 path TEXT,
+                                                 referer TEXT,
+                                                 utm_source TEXT,
+                                                 utm_medium TEXT,
+                                                 utm_campaign TEXT,
+                                                 utm_term TEXT,
+                                                 utm_content TEXT,
+                                                 visited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+-- 创建索引提高查询性能
+CREATE INDEX IF NOT EXISTS idx_visit_logs_visited_at ON visit_logs(visited_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visit_logs_path ON visit_logs(path);
+
+-- 开启 RLS（允许所有人写入，但不允许删除）
+ALTER TABLE public.visit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "允许记录访问" ON public.visit_logs;
+CREATE POLICY "允许记录访问" ON public.visit_logs
+    FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "仅管理员可查看日志" ON public.visit_logs;
+CREATE POLICY "仅管理员可查看日志" ON public.visit_logs
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+-- =====================================================
+-- 4. 为当前用户创建 profile（如果还没有）
+-- =====================================================
+INSERT INTO public.profiles (id, username, full_name, avatar_url)
+VALUES (
+           '92837332-7eb7-4875-9fb6-b8201c8d273d',
+           'Mydykitty',
+           'Mydykitty',
+           'https://avatars.githubusercontent.com/u/5461820?v=4'
+       )
+    ON CONFLICT (id) DO UPDATE
+                            SET
+                                username = EXCLUDED.username,
+                            full_name = EXCLUDED.full_name,
+                            avatar_url = EXCLUDED.avatar_url;
+
+
+-- =====================================================
+-- 创建 post_comments 表（文章评论）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.post_comments (
+                                                    id BIGSERIAL PRIMARY KEY,
+                                                    post_id BIGINT REFERENCES posts(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    likes_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_comments_user ON post_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_comments_created ON post_comments(created_at DESC);
+
+-- 开启 RLS
+ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;
+
+-- 创建 RLS 策略
+DROP POLICY IF EXISTS "所有人可查看评论" ON public.post_comments;
+CREATE POLICY "所有人可查看评论" ON public.post_comments
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "登录用户可评论" ON public.post_comments;
+CREATE POLICY "登录用户可评论" ON public.post_comments
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "用户可更新自己的评论" ON public.post_comments;
+CREATE POLICY "用户可更新自己的评论" ON public.post_comments
+    FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "用户可删除自己的评论" ON public.post_comments;
+CREATE POLICY "用户可删除自己的评论" ON public.post_comments
+    FOR DELETE USING (auth.uid() = user_id);
